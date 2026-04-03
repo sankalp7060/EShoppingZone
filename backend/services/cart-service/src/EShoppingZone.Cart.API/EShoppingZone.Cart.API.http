@@ -1,0 +1,6 @@
+@EShoppingZone.Cart.API_HostAddress = http://localhost:5081
+
+GET {{EShoppingZone.Cart.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
