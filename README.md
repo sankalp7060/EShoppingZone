@@ -143,3 +143,101 @@ It includes:
   ```csharp
   app.UseAuthentication();
   app.UseAuthorization();
+
+---
+
+## 📅 UC-3: Profile Management
+
+### 🎯 Goal
+Enable users to manage their profile information and addresses (CRUD operations).
+
+---
+
+### 📌 Description
+This use case focuses on providing functionality for users to view and update their personal details, as well as manage multiple addresses.
+
+It includes:
+
+- Fetching user profile details.
+- Updating profile information.
+- Adding and managing multiple addresses.
+- Securing all endpoints using JWT authentication.
+
+---
+
+### 🛠️ Tasks
+
+#### 1. **Get User Profile**
+- Endpoint: `GET /profile/{id}`
+- Fetch user details from database.
+- Return:
+  - Full Name
+  - Email
+  - Role
+  - Created Date
+
+---
+
+#### 2. **Update Profile**
+- Endpoint: `PUT /profile/update`
+- Allow user to update:
+  - Full Name
+  - Email (optional with validation)
+- Validate input fields.
+- Save updated data to database.
+
+---
+
+#### 3. **Add Address**
+- Endpoint: `POST /profile/address`
+- Create Address entity with fields:
+  - `Id`
+  - `UserId`
+  - `Street`
+  - `City`
+  - `State`
+  - `Country`
+  - `PostalCode`
+- Link address to user.
+- Store in database.
+
+---
+
+#### 4. **View Addresses**
+- Endpoint: `GET /profile/addresses`
+- Fetch all addresses linked to logged-in user.
+- Return list of saved addresses.
+
+---
+
+#### 5. **JWT Security**
+- Protect all endpoints using `[Authorize]`
+- Extract `UserId` from JWT claims instead of passing manually.
+- Ensure users can only access their own profile data.
+
+---
+
+### 🧪 Postman Testing
+
+**Objective:** Verify profile operations and JWT-based security.
+
+---
+
+#### ✅ Test Cases
+
+| Request | Description | Expected Response |
+|--------|-------------|------------------|
+| `GET /profile/{id}` | Fetch user profile | `200 OK` |
+| `PUT /profile/update` | Update profile details | `200 OK` |
+| `POST /profile/address` | Add new address | `201 Created` |
+| `GET /profile/addresses` | Get user addresses | `200 OK` |
+| Access without JWT | Unauthorized access | `401 Unauthorized` |
+
+---
+
+#### 🔹 Sample Update Profile Request
+```json
+{
+  "fullName": "Sankalp Agarwal",
+  "email": "sankalp_updated@gmail.com"
+}
