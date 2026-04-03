@@ -20,7 +20,7 @@ namespace EShoppingZone.Profile.Application.DTOs
         public long MobileNumber { get; set; }
 
         public string? Gender { get; set; }
-        public DateTime? DateOfBirth { get; set; }
+        public DateTime DateOfBirth { get; set; }
     }
 
     public class LoginRequest
