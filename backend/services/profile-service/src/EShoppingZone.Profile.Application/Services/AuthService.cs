@@ -52,7 +52,7 @@ namespace EShoppingZone.Profile.Application.Services
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 MobileNumber = request.MobileNumber,
                 Gender = request.Gender ?? string.Empty,
-                DateOfBirth = request.DateOfBirth,
+                DateOfBirth = DateTime.SpecifyKind(request.DateOfBirth, DateTimeKind.Utc),
                 Role = UserRole.Customer,
                 IsEmailVerified = false,
                 CreatedAt = DateTime.UtcNow,

@@ -25,6 +25,9 @@ builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 // Register services
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+builder.Services.AddScoped<IProfileService, ProfileService>();
+builder.Services.AddScoped<IAddressRepository, AddressRepository>();
+
 // Configure Google Authentication
 builder
     .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
