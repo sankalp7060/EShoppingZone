@@ -68,3 +68,78 @@ This use case covers the initial project setup, including:
   "status": "Healthy",
   "service": "Profile-Service"
 }
+```
+---
+
+## 📅 UC-2: Authentication & User Registration/Login
+
+### 🎯 Goal
+Implement a secure authentication system using JWT with support for role-based access control and OAuth readiness (Google login).
+
+---
+
+### 📌 Description
+This use case focuses on building a complete authentication and authorization system for the EShoppingZone platform.
+
+It includes:
+
+- User registration and login functionality.
+- Secure password storage using hashing.
+- JWT (JSON Web Token) generation for stateless authentication.
+- Role-based access control (RBAC) for:
+  - **Customer**
+  - **Merchant**
+  - **Admin**
+- Integration readiness for third-party authentication (Google OAuth).
+- Protection of APIs using JWT-based authorization middleware.
+
+---
+
+### 🛠️ Tasks
+
+#### 1. **User Entity Design**
+- Create a `User` entity in the **Domain Layer** with fields:
+  - `Id (GUID)`
+  - `FullName`
+  - `Email`
+  - `PasswordHash`
+  - `Role` (Enum: Customer, Merchant, Admin)
+  - `CreatedAt`
+- Apply validation rules (Email format, password length, etc.)
+
+---
+
+#### 2. **Register API**
+- Endpoint: `POST /auth/register`
+- Validate incoming request:
+  - Email uniqueness
+  - Strong password rules
+- Hash password using **BCrypt**
+- Store user in database
+- Return success response with basic user info
+
+---
+
+#### 3. **Login API**
+- Endpoint: `POST /auth/login`
+- Validate credentials:
+  - Check email exists
+  - Verify password hash
+- Generate JWT token on successful authentication
+- Return token and user details
+
+---
+
+#### 4. **JWT Token Generation**
+- Configure JWT Authentication:
+  - Secret Key
+  - Issuer & Audience
+  - Expiry (e.g., 1 hour)
+- Include claims in token:
+  - `UserId`
+  - `Email`
+  - `Role`
+- Configure middleware:
+  ```csharp
+  app.UseAuthentication();
+  app.UseAuthorization();
