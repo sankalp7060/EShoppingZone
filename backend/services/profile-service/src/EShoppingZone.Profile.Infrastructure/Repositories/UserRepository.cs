@@ -15,6 +15,7 @@ namespace EShoppingZone.Profile.Infrastructure.Repositories
         Task DeleteAsync(int id);
         Task<bool> EmailExistsAsync(string email);
         Task<bool> MobileExistsAsync(long mobile);
+        Task<UserEntity?> GetByMobileNumberAsync(long mobileNumber);
     }
 
     public class UserRepository : IUserRepository
@@ -70,5 +71,10 @@ namespace EShoppingZone.Profile.Infrastructure.Repositories
 
         public async Task<bool> MobileExistsAsync(long mobile) =>
             await _context.Users.AnyAsync(u => u.MobileNumber == mobile);
+
+        public async Task<UserEntity?> GetByMobileNumberAsync(long mobileNumber) =>
+            await _context
+                .Users.Include(u => u.Addresses)
+                .FirstOrDefaultAsync(u => u.MobileNumber == mobileNumber);
     }
 }
