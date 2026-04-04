@@ -37,5 +37,7 @@ namespace EShoppingZone.Product.Application.Services
         // Admin operations
         Task<bool> AdminDeleteProductAsync(int productId);
         Task<ProductListResponse> AdminGetAllProductsAsync(ProductFilterRequest filter);
+        Task<List<string>> GetAllCategoriesAsync();
+        Task<List<string>> GetAllProductTypesAsync();
     }
 }
