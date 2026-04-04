@@ -12,6 +12,7 @@ namespace EShoppingZone.Product.Infrastructure.Repositories
         Task UpdateAsync(ProductEntity product);
         Task DeleteAsync(int id);
         Task<bool> ExistsAsync(int id);
+        IQueryable<ProductEntity> GetQueryable();
     }
 
     public class ProductRepository : IProductRepository
@@ -24,10 +25,10 @@ namespace EShoppingZone.Product.Infrastructure.Repositories
         }
 
         public async Task<IEnumerable<ProductEntity>> GetAllAsync() =>
-            await _context.Products.ToListAsync();
+            await _context.Products.Where(p => p.IsActive).ToListAsync();
 
         public async Task<ProductEntity?> GetByIdAsync(int id) =>
-            await _context.Products.FindAsync(id);
+            await _context.Products.FirstOrDefaultAsync(p => p.Id == id);
 
         public async Task<ProductEntity> AddAsync(ProductEntity product)
         {
@@ -47,12 +48,15 @@ namespace EShoppingZone.Product.Infrastructure.Repositories
             var product = await GetByIdAsync(id);
             if (product != null)
             {
-                _context.Products.Remove(product);
-                await _context.SaveChangesAsync();
+                product.IsActive = false;
+                product.UpdatedAt = DateTime.UtcNow;
+                await UpdateAsync(product);
             }
         }
 
         public async Task<bool> ExistsAsync(int id) =>
-            await _context.Products.AnyAsync(p => p.Id == id);
+            await _context.Products.AnyAsync(p => p.Id == id && p.IsActive);
+
+        public IQueryable<ProductEntity> GetQueryable() => _context.Products.AsQueryable();
     }
 }

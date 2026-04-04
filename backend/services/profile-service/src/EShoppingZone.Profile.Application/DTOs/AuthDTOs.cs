@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using EShoppingZone.Profile.Domain.Entities;
 
 namespace EShoppingZone.Profile.Application.DTOs
 {
@@ -21,6 +22,7 @@ namespace EShoppingZone.Profile.Application.DTOs
 
         public string? Gender { get; set; }
         public DateTime DateOfBirth { get; set; }
+        public UserRole Role { get; set; } = UserRole.Customer;
     }
 
     public class LoginRequest
