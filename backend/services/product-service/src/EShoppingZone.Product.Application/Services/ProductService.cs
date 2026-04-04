@@ -216,9 +216,10 @@ namespace EShoppingZone.Product.Application.Services
             // Apply filters
             if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
             {
+                var searchTerm = filter.SearchTerm.ToLower();
                 query = query.Where(p =>
-                    p.ProductName.Contains(filter.SearchTerm)
-                    || p.Description.Contains(filter.SearchTerm)
+                    p.ProductName.ToLower().Contains(searchTerm)
+                    || p.Description.ToLower().Contains(searchTerm)
                 );
             }
 
@@ -261,7 +262,7 @@ namespace EShoppingZone.Product.Application.Services
                 "name_desc" => query.OrderByDescending(p => p.ProductName),
                 "newest" => query.OrderByDescending(p => p.CreatedAt),
                 "rating" => query.OrderByDescending(p =>
-                    p.Ratings.Values.DefaultIfEmpty(0).Average()
+                    p.Ratings == null || !p.Ratings.Any() ? 0 : p.Ratings.Values.Average()
                 ),
                 _ => query.OrderByDescending(p => p.CreatedAt),
             };
@@ -405,6 +406,32 @@ namespace EShoppingZone.Product.Application.Services
                 CreatedAt = product.CreatedAt,
                 UpdatedAt = product.UpdatedAt,
             };
+        }
+
+        public async Task<List<string>> GetAllCategoriesAsync()
+        {
+            var categories = await _productRepository
+                .GetQueryable()
+                .Where(p => p.IsActive)
+                .Select(p => p.Category)
+                .Distinct()
+                .OrderBy(c => c)
+                .ToListAsync();
+
+            return categories;
+        }
+
+        public async Task<List<string>> GetAllProductTypesAsync()
+        {
+            var types = await _productRepository
+                .GetQueryable()
+                .Where(p => p.IsActive)
+                .Select(p => p.ProductType)
+                .Distinct()
+                .OrderBy(t => t)
+                .ToListAsync();
+
+            return types;
         }
     }
 }
