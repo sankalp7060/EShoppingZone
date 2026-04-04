@@ -82,27 +82,98 @@ namespace EShoppingZone.Product.API.Controllers
         }
 
         /// <summary>
-        /// Get products by category
+        /// Get products by category with pagination
         /// </summary>
         [HttpGet("category/{category}")]
         public async Task<IActionResult> GetProductsByCategory(
             string category,
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 20
+            [FromQuery] int pageSize = 20,
+            [FromQuery] string sortBy = "newest"
         )
         {
             try
             {
-                var result = await _productService.GetProductsByCategoryAsync(
-                    category,
-                    page,
-                    pageSize
-                );
+                if (string.IsNullOrWhiteSpace(category))
+                    return BadRequest(new { success = false, message = "Category is required" });
+
+                var filter = new ProductFilterRequest
+                {
+                    Category = category,
+                    Page = page,
+                    PageSize = pageSize,
+                    SortBy = sortBy,
+                };
+
+                var result = await _productService.GetAllProductsAsync(filter);
                 return Ok(new { success = true, data = result });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting products by category {Category}", category);
+                _logger.LogError(ex, "Error getting products by category: {Category}", category);
+                return StatusCode(500, new { success = false, message = "Internal server error" });
+            }
+        }
+
+        /// <summary>
+        /// Get all unique categories
+        /// </summary>
+        [HttpGet("categories")]
+        public async Task<IActionResult> GetAllCategories()
+        {
+            try
+            {
+                var categories = await _productService.GetAllCategoriesAsync();
+                return Ok(new { success = true, data = categories });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all categories");
+                return StatusCode(500, new { success = false, message = "Internal server error" });
+            }
+        }
+
+        /// <summary>
+        /// Get featured products (top rated or recently added)
+        /// </summary>
+        [HttpGet("featured")]
+        public async Task<IActionResult> GetFeaturedProducts([FromQuery] int limit = 10)
+        {
+            try
+            {
+                var filter = new ProductFilterRequest
+                {
+                    Page = 1,
+                    PageSize = limit,
+                    SortBy = "newest",
+                    InStock = true,
+                };
+
+                var result = await _productService.GetAllProductsAsync(filter);
+                return Ok(new { success = true, data = result });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting featured products: {Message}", ex.Message);
+                _logger.LogError(ex, "Stack trace: {StackTrace}", ex.StackTrace);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get all unique product types
+        /// </summary>
+        [HttpGet("types")]
+        public async Task<IActionResult> GetAllProductTypes()
+        {
+            try
+            {
+                var types = await _productService.GetAllProductTypesAsync();
+                return Ok(new { success = true, data = types });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all product types");
                 return StatusCode(500, new { success = false, message = "Internal server error" });
             }
         }
@@ -412,6 +483,39 @@ namespace EShoppingZone.Product.API.Controllers
             {
                 _logger.LogError(ex, "Error updating stock for product {ProductId}", id);
                 return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Search products by name (Case-insensitive partial match)
+        /// </summary>
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchProducts(
+            [FromQuery] string name,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20
+        )
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(name))
+                    return BadRequest(new { success = false, message = "Search term is required" });
+
+                var filter = new ProductFilterRequest
+                {
+                    SearchTerm = name,
+                    Page = page,
+                    PageSize = pageSize,
+                    SortBy = "name_asc",
+                };
+
+                var result = await _productService.GetAllProductsAsync(filter);
+                return Ok(new { success = true, data = result });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error searching products with name: {Name}", name);
+                return StatusCode(500, new { success = false, message = "Internal server error" });
             }
         }
     }
