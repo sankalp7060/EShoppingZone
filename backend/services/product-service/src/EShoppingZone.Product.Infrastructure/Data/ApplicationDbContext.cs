@@ -16,12 +16,25 @@ namespace EShoppingZone.Product.Infrastructure.Data
 
             modelBuilder.Entity<ProductEntity>(entity =>
             {
+                entity.ToTable("Products"); // Explicit table name
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.ProductName).IsRequired().HasMaxLength(200);
-                entity.Property(e => e.Category).IsRequired().HasMaxLength(100);
-                entity.Property(e => e.Price).HasPrecision(18, 2);
+                entity.Property(e => e.Id).UseIdentityColumn();
 
-                // Store JSON dictionaries as JSONB in PostgreSQL
+                entity.Property(e => e.ProductName).IsRequired().HasMaxLength(200);
+
+                entity.Property(e => e.ProductType).IsRequired().HasMaxLength(100);
+
+                entity.Property(e => e.Category).IsRequired().HasMaxLength(100);
+
+                entity.Property(e => e.Price).IsRequired().HasPrecision(18, 2);
+
+                entity.Property(e => e.Description).IsRequired().HasMaxLength(2000);
+
+                entity.Property(e => e.StockQuantity).IsRequired();
+
+                entity.Property(e => e.MerchantId).IsRequired();
+
+                // Store JSON as string
                 entity
                     .Property(e => e.Ratings)
                     .HasColumnType("jsonb")
@@ -35,7 +48,7 @@ namespace EShoppingZone.Product.Infrastructure.Data
                             System.Text.Json.JsonSerializer.Deserialize<Dictionary<int, double>>(
                                 v,
                                 (System.Text.Json.JsonSerializerOptions?)null
-                            ) ?? new()
+                            ) ?? new Dictionary<int, double>()
                     );
 
                 entity
@@ -51,7 +64,7 @@ namespace EShoppingZone.Product.Infrastructure.Data
                             System.Text.Json.JsonSerializer.Deserialize<Dictionary<int, string>>(
                                 v,
                                 (System.Text.Json.JsonSerializerOptions?)null
-                            ) ?? new()
+                            ) ?? new Dictionary<int, string>()
                     );
 
                 entity
@@ -67,7 +80,7 @@ namespace EShoppingZone.Product.Infrastructure.Data
                             System.Text.Json.JsonSerializer.Deserialize<List<string>>(
                                 v,
                                 (System.Text.Json.JsonSerializerOptions?)null
-                            ) ?? new()
+                            ) ?? new List<string>()
                     );
 
                 entity
@@ -83,12 +96,19 @@ namespace EShoppingZone.Product.Infrastructure.Data
                             System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(
                                 v,
                                 (System.Text.Json.JsonSerializerOptions?)null
-                            ) ?? new()
+                            ) ?? new Dictionary<string, string>()
                     );
 
+                // Indexes
                 entity.HasIndex(e => e.ProductName);
                 entity.HasIndex(e => e.Category);
                 entity.HasIndex(e => e.MerchantId);
+                entity.HasIndex(e => e.IsActive);
+
+                // Default values
+                entity.Property(e => e.IsActive).HasDefaultValue(true);
+
+                entity.Property(e => e.CreatedAt).HasDefaultValueSql("NOW()");
             });
         }
     }
