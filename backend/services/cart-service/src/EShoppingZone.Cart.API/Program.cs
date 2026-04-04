@@ -1,59 +1,108 @@
-using System.Text.Json;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
+using System.Text;
+using EShoppingZone.Cart.Application.Services;
+using EShoppingZone.Cart.Infrastructure.Data;
+using EShoppingZone.Cart.Infrastructure.Repositories;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Health checks
-builder.Services.AddHealthChecks()
-    .AddCheck("cart_health", () => HealthCheckResult.Healthy("Cart service is running"));
-
-// CORS
-builder.Services.AddCors(options =>
+// Configure PostgreSQL - Single Database
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
-        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+    options.UseNpgsql(
+        connectionString,
+        npgsqlOptions =>
+        {
+            npgsqlOptions.EnableRetryOnFailure(3);
+            npgsqlOptions.CommandTimeout(30);
+        }
+    );
 });
+
+// Configure Redis for caching
+var redisConnection = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = redisConnection;
+    options.InstanceName = "EShoppingZone_Cart_";
+});
+
+// Register repositories
+builder.Services.AddScoped<ICartRepository, CartRepository>();
+
+// Register services
+builder.Services.AddScoped<ICartService, CartService>();
+
+// Configure JWT Authentication
+builder
+    .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)
+            ),
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var token = context
+                    .Request.Headers["Authorization"]
+                    .FirstOrDefault()
+                    ?.Split(" ")
+                    .Last();
+                if (!string.IsNullOrEmpty(token))
+                    context.Token = token;
+                return Task.CompletedTask;
+            },
+        };
+    });
+
+builder.Services.AddAuthorization();
+builder.Services.AddCors();
+
+// Health checks
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
+// Configure pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseCors("AllowAll");
+app.UseHttpsRedirection();
+app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHealthChecks("/health");
 
-// Health check endpoint
-app.MapHealthChecks("/health", new HealthCheckOptions
+// Ensure database is created
+using (var scope = app.Services.CreateScope())
 {
-    ResponseWriter = async (context, report) =>
-    {
-        context.Response.ContentType = "application/json";
-        var result = JsonSerializer.Serialize(new
-        {
-            status = report.Status.ToString(),
-            service = "Cart Service",
-            checks = report.Entries.Select(e => new
-            {
-                name = e.Key,
-                status = e.Value.Status.ToString(),
-                description = e.Value.Description,
-            }),
-            timestamp = DateTime.UtcNow,
-        });
-        await context.Response.WriteAsync(result);
-    },
-});
-
-app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = _ => true });
-app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await dbContext.Database.EnsureCreatedAsync();
+}
 
 app.Run();
