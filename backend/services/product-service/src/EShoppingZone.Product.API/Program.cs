@@ -1,43 +1,82 @@
-using System.Text.Json;
+using System.Text;
+using EShoppingZone.Product.Application.Services;
 using EShoppingZone.Product.Infrastructure.Data;
 using EShoppingZone.Product.Infrastructure.Repositories;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Npgsql.EntityFrameworkCore.PostgreSQL;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to container
+// Add services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Configure PostgreSQL
+// Configure PostgreSQL - Single Database
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+Console.WriteLine($"Using Connection String: {connectionString}");
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
-);
+{
+    options.UseNpgsql(
+        connectionString,
+        npgsqlOptions =>
+        {
+            npgsqlOptions.EnableRetryOnFailure(3);
+            npgsqlOptions.CommandTimeout(30);
+        }
+    );
+    options.EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
+    options.EnableDetailedErrors(builder.Environment.IsDevelopment());
+});
 
 // Register repositories
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 
-// Health checks
-builder
-    .Services.AddHealthChecks()
-    .AddDbContextCheck<ApplicationDbContext>()
-    .AddCheck<ProductHealthCheck>("product_health");
+// Register services
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 
-// Configure CORS
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy(
-        "AllowAll",
-        builder =>
+// Configure JWT Authentication
+builder
+    .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
         {
-            builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
-        }
-    );
-});
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)
+            ),
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var token = context
+                    .Request.Headers["Authorization"]
+                    .FirstOrDefault()
+                    ?.Split(" ")
+                    .Last();
+                if (!string.IsNullOrEmpty(token))
+                    context.Token = token;
+                return Task.CompletedTask;
+            },
+        };
+    });
+
+builder.Services.AddAuthorization();
+builder.Services.AddCors();
+
+// Health checks
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
@@ -49,57 +88,26 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowAll");
+app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHealthChecks("/health");
 
-// Health check endpoints
-app.MapHealthChecks(
-    "/health",
-    new HealthCheckOptions
-    {
-        ResponseWriter = async (context, report) =>
-        {
-            context.Response.ContentType = "application/json";
-            var result = JsonSerializer.Serialize(
-                new
-                {
-                    status = report.Status.ToString(),
-                    checks = report.Entries.Select(e => new
-                    {
-                        name = e.Key,
-                        status = e.Value.Status.ToString(),
-                        description = e.Value.Description,
-                    }),
-                    totalDuration = report.TotalDuration,
-                }
-            );
-            await context.Response.WriteAsync(result);
-        },
-    }
-);
-
-app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = _ => true });
-
-app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
-
-// Apply migrations automatically
+// Ensure database is created and migrations are applied
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await dbContext.Database.MigrateAsync();
+    try
+    {
+        await dbContext.Database.EnsureCreatedAsync();
+        Console.WriteLine("Database connection successful!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Database connection failed: {ex.Message}");
+        throw;
+    }
 }
 
 app.Run();
-
-// Health check implementation
-public class ProductHealthCheck : IHealthCheck
-{
-    public Task<HealthCheckResult> CheckHealthAsync(
-        HealthCheckContext context,
-        CancellationToken cancellationToken = default
-    )
-    {
-        return Task.FromResult(HealthCheckResult.Healthy("Product service is running"));
-    }
-}

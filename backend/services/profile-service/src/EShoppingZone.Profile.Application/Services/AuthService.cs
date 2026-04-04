@@ -44,6 +44,17 @@ namespace EShoppingZone.Profile.Application.Services
             if (await _userRepository.MobileExistsAsync(request.MobileNumber))
                 throw new InvalidOperationException("Mobile number already registered");
 
+            // Role validation - Only Admin can create Admin accounts
+            var isAdminRequest = request.Role == UserRole.Admin;
+            if (isAdminRequest)
+            {
+                // Check if current user is Admin (when called from admin panel)
+                // For public registration, prevent Admin role
+                throw new InvalidOperationException(
+                    "Admin accounts can only be created by existing Admins"
+                );
+            }
+
             // Create new user
             var user = new UserEntity
             {
@@ -52,15 +63,19 @@ namespace EShoppingZone.Profile.Application.Services
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 MobileNumber = request.MobileNumber,
                 Gender = request.Gender ?? string.Empty,
-                DateOfBirth = DateTime.SpecifyKind(request.DateOfBirth, DateTimeKind.Utc),
-                Role = UserRole.Customer,
+                DateOfBirth = request.DateOfBirth,
+                Role = request.Role, // Use the role from request
                 IsEmailVerified = false,
                 CreatedAt = DateTime.UtcNow,
                 IsActive = true,
             };
 
             await _userRepository.CreateAsync(user);
-            _logger.LogInformation("New user registered: {Email}", user.Email);
+            _logger.LogInformation(
+                "New user registered: {Email} with role {Role}",
+                user.Email,
+                user.Role
+            );
 
             return await GenerateAuthResponse(user);
         }

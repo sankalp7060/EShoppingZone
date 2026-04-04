@@ -28,6 +28,8 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IAddressRepository, AddressRepository>();
 
+builder.Services.AddScoped<IAdminService, AdminService>();
+
 // Configure Google Authentication
 builder
     .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
