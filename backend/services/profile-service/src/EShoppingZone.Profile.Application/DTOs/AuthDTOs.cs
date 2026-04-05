@@ -21,7 +21,7 @@ namespace EShoppingZone.Profile.Application.DTOs
         public long MobileNumber { get; set; }
 
         public string? Gender { get; set; }
-        public DateTime DateOfBirth { get; set; }
+        public DateTime? DateOfBirth { get; set; }
         public UserRole Role { get; set; } = UserRole.Customer;
     }
 
@@ -38,7 +38,7 @@ namespace EShoppingZone.Profile.Application.DTOs
     public class OAuthLoginRequest
     {
         [Required]
-        public string Provider { get; set; } = string.Empty; // "Google" or "GitHub"
+        public string Provider { get; set; } = string.Empty;
 
         [Required]
         public string IdToken { get; set; } = string.Empty;
@@ -68,6 +68,9 @@ namespace EShoppingZone.Profile.Application.DTOs
         public string Role { get; set; } = string.Empty;
         public string? ProfileImage { get; set; }
         public bool IsEmailVerified { get; set; }
+        public bool IsActive { get; set; } = true;
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
     }
 
     public class ChangePasswordRequest
@@ -109,5 +112,33 @@ namespace EShoppingZone.Profile.Application.DTOs
     public class RevokeAllTokensRequest
     {
         public string? DeviceInfo { get; set; }
+    }
+
+    // Admin specific DTOs
+    public class AdminUpdateUserRequest
+    {
+        public string? FullName { get; set; }
+        public string? Email { get; set; }
+        public long? MobileNumber { get; set; }
+        public UserRole? Role { get; set; }
+        public bool? IsActive { get; set; }
+    }
+
+    public class UserListResponse
+    {
+        public List<UserDto> Users { get; set; } = new();
+        public int TotalCount { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalPages { get; set; }
+    }
+
+    public class UserFilterRequest
+    {
+        public string? SearchTerm { get; set; }
+        public string? Role { get; set; }
+        public bool? IsActive { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
     }
 }
