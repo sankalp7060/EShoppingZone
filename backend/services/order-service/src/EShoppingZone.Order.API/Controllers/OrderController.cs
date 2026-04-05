@@ -211,5 +211,48 @@ namespace EShoppingZone.Order.API.Controllers
                 return StatusCode(500, new { success = false, message = "Internal server error" });
             }
         }
+
+        /// <summary>
+        /// Place order using wallet payment
+        /// </summary>
+        [HttpPost("pay")]
+        [Authorize]
+        public async Task<IActionResult> PlaceOrderWithWallet(
+            [FromBody] WalletPaymentRequest request
+        )
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                var token = HttpContext
+                    .Request.Headers["Authorization"]
+                    .ToString()
+                    .Replace("Bearer ", "");
+
+                // Validate payment mode
+                if (request.ModeOfPayment != "EWALLET")
+                {
+                    return BadRequest(
+                        new
+                        {
+                            success = false,
+                            message = "Invalid payment mode. Use 'EWALLET' for wallet payment.",
+                        }
+                    );
+                }
+
+                var result = await _orderService.PlaceOrderWithWalletAsync(userId, request, token);
+                return Ok(new { success = true, data = result });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error placing wallet order");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
     }
 }
