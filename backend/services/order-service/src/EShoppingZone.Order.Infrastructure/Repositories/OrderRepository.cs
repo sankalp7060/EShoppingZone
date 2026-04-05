@@ -12,6 +12,7 @@ namespace EShoppingZone.Order.Infrastructure.Repositories
         Task<OrderEntity?> UpdateAsync(OrderEntity order);
         Task<List<OrderEntity>> GetAllAsync();
         Task<bool> ExistsAsync(int orderId);
+        Task<OrderEntity?> UpdateOrderStatusAsync(int orderId, string status);
     }
 
     public class OrderRepository : IOrderRepository
@@ -61,6 +62,18 @@ namespace EShoppingZone.Order.Infrastructure.Repositories
         public async Task<bool> ExistsAsync(int orderId)
         {
             return await _context.Orders.AnyAsync(o => o.Id == orderId && o.IsActive);
+        }
+
+        public async Task<OrderEntity?> UpdateOrderStatusAsync(int orderId, string status)
+        {
+            var order = await GetByIdAsync(orderId);
+            if (order != null)
+            {
+                order.OrderStatus = status;
+                order.UpdatedAt = DateTime.UtcNow;
+                await UpdateAsync(order);
+            }
+            return order;
         }
     }
 }

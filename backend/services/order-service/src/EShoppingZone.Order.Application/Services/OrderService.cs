@@ -11,6 +11,7 @@ namespace EShoppingZone.Order.Application.Services
         private readonly IProfileServiceClient _profileServiceClient;
         private readonly ICartServiceClient _cartServiceClient;
         private readonly IProductServiceClient _productServiceClient;
+        private readonly IWalletServiceClient _walletServiceClient;
         private readonly ILogger<OrderService> _logger;
 
         public OrderService(
@@ -18,6 +19,7 @@ namespace EShoppingZone.Order.Application.Services
             IProfileServiceClient profileServiceClient,
             ICartServiceClient cartServiceClient,
             IProductServiceClient productServiceClient,
+            IWalletServiceClient walletServiceClient,
             ILogger<OrderService> logger
         )
         {
@@ -25,6 +27,7 @@ namespace EShoppingZone.Order.Application.Services
             _profileServiceClient = profileServiceClient;
             _cartServiceClient = cartServiceClient;
             _productServiceClient = productServiceClient;
+            _walletServiceClient = walletServiceClient;
             _logger = logger;
         }
 
@@ -106,6 +109,123 @@ namespace EShoppingZone.Order.Application.Services
             );
 
             return MapToOrderResponse(createdOrder);
+        }
+
+        public async Task<WalletPaymentResponse> PlaceOrderWithWalletAsync(
+            int userId,
+            WalletPaymentRequest request,
+            string token
+        )
+        {
+            // 1. Get user's cart
+            var cart = await _cartServiceClient.GetCartAsync(userId, token);
+            if (cart == null || cart.Items == null || !cart.Items.Any())
+                throw new InvalidOperationException("Cart is empty");
+
+            // 2. Check wallet balance first
+            var walletBalance = await _walletServiceClient.GetWalletBalanceAsync(userId, token);
+            if (walletBalance.CurrentBalance < cart.TotalPrice)
+            {
+                throw new InvalidOperationException(
+                    $"Insufficient wallet balance. Available: {walletBalance.CurrentBalance:C}, Required: {cart.TotalPrice:C}"
+                );
+            }
+
+            // 3. Get delivery address from Profile Service
+            var address = await _profileServiceClient.GetAddressByIdAsync(
+                request.AddressId,
+                userId,
+                token
+            );
+            if (address == null)
+                throw new InvalidOperationException("Invalid delivery address");
+
+            // 4. Update product stocks
+            foreach (var item in cart.Items)
+            {
+                var stockUpdated = await _productServiceClient.UpdateStockAsync(
+                    item.ProductId,
+                    -item.Quantity,
+                    token
+                );
+                if (!stockUpdated)
+                    throw new InvalidOperationException(
+                        $"Insufficient stock for product: {item.ProductName}"
+                    );
+            }
+
+            // 5. Create order first (to get OrderId for payment)
+            var order = new OrderEntity
+            {
+                OrderId = 0,
+                OrderDate = DateTime.UtcNow,
+                CustomerId = userId,
+                AmountPaid = cart.TotalPrice,
+                ModeOfPayment = "EWALLET",
+                OrderStatus = "Pending Payment", // Temporary status
+                Quantity = cart.TotalItems,
+                AddressHouseNumber = address.HouseNumber,
+                AddressStreetName = address.StreetName,
+                AddressColonyName = address.ColonyName ?? string.Empty,
+                AddressCity = address.City,
+                AddressState = address.State,
+                AddressPincode = address.Pincode,
+                AddressLandmark = address.Landmark ?? string.Empty,
+                OrderItems = cart
+                    .Items.Select(i => new OrderItemEntity
+                    {
+                        ProductId = i.ProductId,
+                        ProductName = i.ProductName,
+                        Price = i.Price,
+                        Quantity = i.Quantity,
+                        Subtotal = i.Subtotal,
+                        ImageUrl = i.ImageUrl,
+                    })
+                    .ToList(),
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true,
+            };
+
+            var createdOrder = await _orderRepository.CreateAsync(order);
+
+            // 6. Process wallet payment
+            var paymentResult = await _walletServiceClient.ProcessWalletPaymentAsync(
+                userId,
+                createdOrder.Id,
+                cart.TotalPrice,
+                token
+            );
+
+            if (!paymentResult.Success)
+            {
+                // Rollback - delete the order if payment fails
+                await _orderRepository.UpdateOrderStatusAsync(createdOrder.Id, "Payment Failed");
+                throw new InvalidOperationException(paymentResult.Message);
+            }
+
+            // 7. Update order status to confirmed after successful payment
+            createdOrder.OrderStatus = "Placed";
+            await _orderRepository.UpdateAsync(createdOrder);
+
+            // 8. Clear the cart
+            await _cartServiceClient.ClearCartAsync(userId, token);
+
+            _logger.LogInformation(
+                "Wallet Order placed successfully for user {UserId}, OrderId: {OrderId}, TransactionId: {TransactionId}",
+                userId,
+                createdOrder.Id,
+                paymentResult.TransactionId
+            );
+
+            return new WalletPaymentResponse
+            {
+                Success = true,
+                Message = "Order placed successfully using wallet",
+                OrderId = createdOrder.Id,
+                AmountPaid = cart.TotalPrice,
+                WalletBalanceAfter = paymentResult.NewBalance,
+                TransactionId = paymentResult.TransactionId,
+            };
         }
 
         public async Task<List<OrderResponse>> GetUserOrdersAsync(int userId)
