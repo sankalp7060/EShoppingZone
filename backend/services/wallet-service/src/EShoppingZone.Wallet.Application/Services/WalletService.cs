@@ -109,7 +109,7 @@ namespace EShoppingZone.Wallet.Application.Services
 
             if (wallet.CurrentBalance < request.Amount)
                 throw new InvalidOperationException(
-                    $"Insufficient balance. Current balance: {wallet.CurrentBalance:C}"
+                    $"Insufficient balance. Current balance: {wallet.CurrentBalance:C}, Required: {request.Amount:C}"
                 );
 
             // Deduct money from wallet
@@ -134,7 +134,7 @@ namespace EShoppingZone.Wallet.Application.Services
                 IsActive = true,
             };
 
-            await _walletRepository.AddStatementAsync(statement);
+            var createdStatement = await _walletRepository.AddStatementAsync(statement);
 
             _logger.LogInformation(
                 "Deducted {Amount} from wallet for user {UserId} for order {OrderId}. New balance: {Balance}",
@@ -149,7 +149,7 @@ namespace EShoppingZone.Wallet.Application.Services
                 Success = true,
                 Message = $"Payment of {request.Amount:C} successful",
                 NewBalance = wallet.CurrentBalance,
-                TransactionId = statement.Id,
+                TransactionId = createdStatement.Id,
             };
         }
 

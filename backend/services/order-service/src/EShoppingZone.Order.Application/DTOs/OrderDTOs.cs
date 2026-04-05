@@ -84,4 +84,23 @@ namespace EShoppingZone.Order.Application.DTOs
         public string Landmark { get; set; } = string.Empty;
         public bool IsDefault { get; set; }
     }
+
+    public class WalletPaymentRequest
+    {
+        [Required]
+        public int AddressId { get; set; }
+
+        [Required]
+        public string ModeOfPayment { get; set; } = "EWALLET";
+    }
+
+    public class WalletPaymentResponse
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public int OrderId { get; set; }
+        public decimal AmountPaid { get; set; }
+        public decimal WalletBalanceAfter { get; set; }
+        public int TransactionId { get; set; }
+    }
 }
