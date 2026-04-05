@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using EShoppingZone.Profile.Application.DTOs;
 using EShoppingZone.Profile.Domain.Entities;
 
@@ -6,30 +5,22 @@ namespace EShoppingZone.Profile.Application.Services
 {
     public interface IAdminService
     {
+        // User Management
         Task<AuthResponse> CreateUserByAdminAsync(AdminCreateUserRequest request);
         Task<bool> ChangeUserRoleAsync(int userId, UserRole newRole);
-        Task<IEnumerable<UserDto>> GetAllUsersAsync();
-    }
+        Task<UserListResponse> GetAllUsersAsync(UserFilterRequest filter);
+        Task<UserDto?> GetUserByIdAsync(int userId);
+        Task<bool> UpdateUserAsync(int userId, AdminUpdateUserRequest request);
+        Task<bool> SuspendUserAsync(int userId, string? reason = null);
+        Task<bool> ReactivateUserAsync(int userId);
+        Task<bool> DeleteUserAsync(int userId);
 
-    public class AdminCreateUserRequest
-    {
-        [Required]
-        public string FullName { get; set; } = string.Empty;
-
-        [Required]
-        [EmailAddress]
-        public string Email { get; set; } = string.Empty;
-
-        [Required]
-        public string Password { get; set; } = string.Empty;
-
-        [Required]
-        public long MobileNumber { get; set; }
-
-        [Required]
-        public UserRole Role { get; set; }
-
-        public string? Gender { get; set; }
-        public DateTime? DateOfBirth { get; set; }
+        // Dashboard Analytics
+        Task<DashboardAnalyticsResponse> GetDashboardAnalyticsAsync();
+        Task<List<UserActivityResponse>> GetRecentUserActivityAsync(int days = 7);
+        Task<RevenueAnalyticsResponse> GetRevenueAnalyticsAsync(
+            DateTime? fromDate = null,
+            DateTime? toDate = null
+        );
     }
 }
