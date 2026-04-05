@@ -51,10 +51,19 @@ builder.Services.AddHttpClient<IProductServiceClient, ProductServiceClient>(clie
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 
+builder.Services.AddHttpClient<IWalletServiceClient, WalletServiceClient>(client =>
+{
+    client.BaseAddress = new Uri(
+        builder.Configuration["ServiceUrls:WalletService"] ?? "http://localhost:5005"
+    );
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+
 // Register HTTP clients for inter-service communication
 builder.Services.AddHttpClient<IProfileServiceClient, ProfileServiceClient>();
 builder.Services.AddHttpClient<ICartServiceClient, CartServiceClient>();
 builder.Services.AddHttpClient<IProductServiceClient, ProductServiceClient>();
+builder.Services.AddHttpClient<IWalletServiceClient, WalletServiceClient>();
 
 // Register repositories
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();

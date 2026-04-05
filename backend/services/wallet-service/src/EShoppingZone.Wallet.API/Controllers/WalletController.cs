@@ -195,5 +195,28 @@ namespace EShoppingZone.Wallet.API.Controllers
                 return StatusCode(500, new { success = false, message = "Internal server error" });
             }
         }
+
+        /// <summary>
+        /// Pay for an order using wallet (called by Order Service)
+        /// </summary>
+        [HttpPost("pay")]
+        public async Task<IActionResult> PayForOrder([FromBody] PayMoneyRequest request)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                var result = await _walletService.PayMoneyAsync(userId, request);
+                return Ok(new { success = true, data = result });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing wallet payment");
+                return StatusCode(500, new { success = false, message = "Internal server error" });
+            }
+        }
     }
 }
