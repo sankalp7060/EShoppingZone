@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -7,8 +6,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.23" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
-
+  <ItemGroup>
+    <ProjectReference Include="..\EShoppingZone.Wallet.Application\EShoppingZone.Wallet.Application.csproj" />
+    <ProjectReference Include="..\EShoppingZone.Wallet.Infrastructure\EShoppingZone.Wallet.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\shared\EShoppingZone.Common\EShoppingZone.Common.csproj" />
+  </ItemGroup>
 </Project>
