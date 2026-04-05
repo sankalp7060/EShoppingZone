@@ -11,27 +11,11 @@ namespace EShoppingZone.Order.Infrastructure.Data
             : base(options) { }
 
         public DbSet<OrderEntity> Orders { get; set; }
+        public DbSet<OrderStatusHistoryEntity> OrderStatusHistories { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-
-            var comparer = new ValueComparer<List<OrderItemEntity>>(
-                (c1, c2) =>
-                    JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null)
-                    == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
-                c =>
-                    c == null
-                        ? 0
-                        : JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
-                c =>
-                    c == null
-                        ? new List<OrderItemEntity>()
-                        : JsonSerializer.Deserialize<List<OrderItemEntity>>(
-                            JsonSerializer.Serialize(c, (JsonSerializerOptions?)null),
-                            (JsonSerializerOptions?)null
-                        )!
-            );
 
             modelBuilder.Entity<OrderEntity>(entity =>
             {
@@ -41,6 +25,7 @@ namespace EShoppingZone.Order.Infrastructure.Data
                 entity.Property(e => e.AmountPaid).HasPrecision(18, 2);
                 entity.Property(e => e.ModeOfPayment).HasMaxLength(20);
                 entity.Property(e => e.OrderStatus).HasMaxLength(20);
+                entity.Property(e => e.CancellationReason).HasMaxLength(500);
 
                 entity.Property(e => e.AddressHouseNumber).HasMaxLength(50);
                 entity.Property(e => e.AddressStreetName).HasMaxLength(200);
@@ -50,7 +35,12 @@ namespace EShoppingZone.Order.Infrastructure.Data
                 entity.Property(e => e.AddressPincode).HasMaxLength(10);
                 entity.Property(e => e.AddressLandmark).HasMaxLength(200);
 
-                // Store OrderItems as JSONB
+                var orderItemsComparer = new ValueComparer<List<OrderItemEntity>>(
+                    (c1, c2) => c1.SequenceEqual(c2),
+                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                    c => c.ToList()
+                );
+
                 entity
                     .Property(e => e.OrderItems)
                     .HasColumnType("jsonb")
@@ -62,12 +52,31 @@ namespace EShoppingZone.Order.Infrastructure.Data
                                 (JsonSerializerOptions?)null
                             ) ?? new()
                     )
-                    .Metadata.SetValueComparer(comparer);
+                    .Metadata.SetValueComparer(orderItemsComparer);
 
-                // Indexes
                 entity.HasIndex(e => e.CustomerId);
                 entity.HasIndex(e => e.OrderStatus);
                 entity.HasIndex(e => e.OrderDate);
+                entity.HasIndex(e => e.EstimatedDeliveryDate);
+            });
+
+            modelBuilder.Entity<OrderStatusHistoryEntity>(entity =>
+            {
+                entity.ToTable("OrderStatusHistories");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Status).IsRequired().HasMaxLength(20);
+                entity.Property(e => e.UpdatedBy).HasMaxLength(100);
+                entity.Property(e => e.Remarks).HasMaxLength(500);
+
+                entity
+                    .HasOne(e => e.Order)
+                    .WithMany(o => o.StatusHistory)
+                    .HasForeignKey(e => e.OrderId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.OrderId);
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.CreatedAt);
             });
         }
     }

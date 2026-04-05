@@ -8,11 +8,16 @@ namespace EShoppingZone.Order.Domain.Entities
         public DateTime OrderDate { get; set; }
         public int CustomerId { get; set; }
         public decimal AmountPaid { get; set; }
-        public string ModeOfPayment { get; set; } = string.Empty; // "COD", "EWALLET"
-        public string OrderStatus { get; set; } = "Placed"; // Placed, Shipped, Delivered, Cancelled
+        public string ModeOfPayment { get; set; } = string.Empty;
+        public string OrderStatus { get; set; } = "Placed";
         public int Quantity { get; set; }
+        public DateTime? EstimatedDeliveryDate { get; set; }
+        public DateTime? ShippedDate { get; set; }
+        public DateTime? DeliveredDate { get; set; }
+        public DateTime? CancelledDate { get; set; }
+        public string? CancellationReason { get; set; }
 
-        // Address snapshot (stored at order time)
+        // Address snapshot
         public string AddressHouseNumber { get; set; } = string.Empty;
         public string AddressStreetName { get; set; } = string.Empty;
         public string AddressColonyName { get; set; } = string.Empty;
@@ -21,8 +26,11 @@ namespace EShoppingZone.Order.Domain.Entities
         public string AddressPincode { get; set; } = string.Empty;
         public string AddressLandmark { get; set; } = string.Empty;
 
-        // Order items (JSON stored)
+        // Order items
         public List<OrderItemEntity> OrderItems { get; set; } = new();
+
+        // Status history
+        public List<OrderStatusHistoryEntity> StatusHistory { get; set; } = new();
     }
 
     public class OrderItemEntity
