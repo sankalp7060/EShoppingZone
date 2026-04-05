@@ -103,4 +103,52 @@ namespace EShoppingZone.Order.Application.DTOs
         public decimal WalletBalanceAfter { get; set; }
         public int TransactionId { get; set; }
     }
+
+    public class OrderStatusHistoryResponse
+    {
+        public int Id { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public DateTime UpdatedAt { get; set; }
+        public string? UpdatedBy { get; set; }
+        public string? Remarks { get; set; }
+    }
+
+    public class UpdateOrderStatusWithRemarksRequest
+    {
+        [Required]
+        public string OrderStatus { get; set; } = string.Empty;
+
+        public string? Remarks { get; set; }
+    }
+
+    public class OrderTrackingResponse
+    {
+        public int OrderId { get; set; }
+        public string CurrentStatus { get; set; } = string.Empty;
+        public DateTime OrderDate { get; set; }
+        public DateTime? EstimatedDeliveryDate { get; set; }
+        public List<OrderStatusHistoryResponse> StatusHistory { get; set; } = new();
+        public List<string> AvailableActions { get; set; } = new();
+    }
+
+    public class OrderFilterRequest
+    {
+        public string? Status { get; set; }
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public decimal? MinAmount { get; set; }
+        public decimal? MaxAmount { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 10;
+        public string? SortBy { get; set; } = "newest";
+    }
+
+    public class OrderListResponse
+    {
+        public List<OrderResponse> Orders { get; set; } = new();
+        public int TotalCount { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalPages { get; set; }
+    }
 }

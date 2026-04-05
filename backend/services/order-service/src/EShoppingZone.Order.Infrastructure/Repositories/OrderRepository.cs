@@ -10,9 +10,27 @@ namespace EShoppingZone.Order.Infrastructure.Repositories
         Task<OrderEntity?> GetByIdAsync(int id);
         Task<List<OrderEntity>> GetByCustomerIdAsync(int customerId);
         Task<OrderEntity?> UpdateAsync(OrderEntity order);
+        Task<OrderEntity?> UpdateOrderStatusAsync(
+            int orderId,
+            string status,
+            string? updatedBy = null,
+            string? remarks = null
+        );
         Task<List<OrderEntity>> GetAllAsync();
         Task<bool> ExistsAsync(int orderId);
-        Task<OrderEntity?> UpdateOrderStatusAsync(int orderId, string status);
+        Task<(List<OrderEntity> Orders, int TotalCount)> GetFilteredOrdersAsync(
+            int? customerId = null,
+            string? status = null,
+            DateTime? fromDate = null,
+            DateTime? toDate = null,
+            decimal? minAmount = null,
+            decimal? maxAmount = null,
+            int page = 1,
+            int pageSize = 10,
+            string? sortBy = "newest"
+        );
+        Task<OrderStatusHistoryEntity> AddStatusHistoryAsync(OrderStatusHistoryEntity history);
+        Task<List<OrderStatusHistoryEntity>> GetStatusHistoryAsync(int orderId);
     }
 
     public class OrderRepository : IOrderRepository
@@ -28,18 +46,34 @@ namespace EShoppingZone.Order.Infrastructure.Repositories
         {
             await _context.Orders.AddAsync(order);
             await _context.SaveChangesAsync();
+
+            // Add initial status history
+            await AddStatusHistoryAsync(
+                new OrderStatusHistoryEntity
+                {
+                    OrderId = order.Id,
+                    Status = order.OrderStatus,
+                    UpdatedBy = "System",
+                    Remarks = "Order placed successfully",
+                    CreatedAt = DateTime.UtcNow,
+                }
+            );
+
             return order;
         }
 
         public async Task<OrderEntity?> GetByIdAsync(int id)
         {
-            return await _context.Orders.FirstOrDefaultAsync(o => o.Id == id && o.IsActive);
+            return await _context
+                .Orders.Include(o => o.StatusHistory)
+                .FirstOrDefaultAsync(o => o.Id == id && o.IsActive);
         }
 
         public async Task<List<OrderEntity>> GetByCustomerIdAsync(int customerId)
         {
             return await _context
-                .Orders.Where(o => o.CustomerId == customerId && o.IsActive)
+                .Orders.Include(o => o.StatusHistory)
+                .Where(o => o.CustomerId == customerId && o.IsActive)
                 .OrderByDescending(o => o.OrderDate)
                 .ToListAsync();
         }
@@ -51,10 +85,59 @@ namespace EShoppingZone.Order.Infrastructure.Repositories
             return order;
         }
 
+        public async Task<OrderEntity?> UpdateOrderStatusAsync(
+            int orderId,
+            string status,
+            string? updatedBy = null,
+            string? remarks = null
+        )
+        {
+            var order = await GetByIdAsync(orderId);
+            if (order == null)
+                return null;
+
+            var oldStatus = order.OrderStatus;
+            order.OrderStatus = status;
+            order.UpdatedAt = DateTime.UtcNow;
+
+            // Update specific date fields based on status
+            switch (status.ToLower())
+            {
+                case "shipped":
+                    order.ShippedDate = DateTime.UtcNow;
+                    order.EstimatedDeliveryDate = DateTime.UtcNow.AddDays(5);
+                    break;
+                case "delivered":
+                    order.DeliveredDate = DateTime.UtcNow;
+                    break;
+                case "cancelled":
+                    order.CancelledDate = DateTime.UtcNow;
+                    order.CancellationReason = remarks;
+                    break;
+            }
+
+            await UpdateAsync(order);
+
+            // Add status history
+            await AddStatusHistoryAsync(
+                new OrderStatusHistoryEntity
+                {
+                    OrderId = orderId,
+                    Status = status,
+                    UpdatedBy = updatedBy ?? "System",
+                    Remarks = remarks ?? $"Status changed from {oldStatus} to {status}",
+                    CreatedAt = DateTime.UtcNow,
+                }
+            );
+
+            return order;
+        }
+
         public async Task<List<OrderEntity>> GetAllAsync()
         {
             return await _context
-                .Orders.Where(o => o.IsActive)
+                .Orders.Include(o => o.StatusHistory)
+                .Where(o => o.IsActive)
                 .OrderByDescending(o => o.OrderDate)
                 .ToListAsync();
         }
@@ -64,16 +147,69 @@ namespace EShoppingZone.Order.Infrastructure.Repositories
             return await _context.Orders.AnyAsync(o => o.Id == orderId && o.IsActive);
         }
 
-        public async Task<OrderEntity?> UpdateOrderStatusAsync(int orderId, string status)
+        public async Task<(List<OrderEntity> Orders, int TotalCount)> GetFilteredOrdersAsync(
+            int? customerId = null,
+            string? status = null,
+            DateTime? fromDate = null,
+            DateTime? toDate = null,
+            decimal? minAmount = null,
+            decimal? maxAmount = null,
+            int page = 1,
+            int pageSize = 10,
+            string? sortBy = "newest"
+        )
         {
-            var order = await GetByIdAsync(orderId);
-            if (order != null)
+            var query = _context.Orders.Include(o => o.StatusHistory).Where(o => o.IsActive);
+
+            if (customerId.HasValue)
+                query = query.Where(o => o.CustomerId == customerId.Value);
+
+            if (!string.IsNullOrEmpty(status))
+                query = query.Where(o => o.OrderStatus == status);
+
+            if (fromDate.HasValue)
+                query = query.Where(o => o.OrderDate >= fromDate.Value);
+
+            if (toDate.HasValue)
+                query = query.Where(o => o.OrderDate <= toDate.Value);
+
+            if (minAmount.HasValue)
+                query = query.Where(o => o.AmountPaid >= minAmount.Value);
+
+            if (maxAmount.HasValue)
+                query = query.Where(o => o.AmountPaid <= maxAmount.Value);
+
+            // Apply sorting
+            query = sortBy?.ToLower() switch
             {
-                order.OrderStatus = status;
-                order.UpdatedAt = DateTime.UtcNow;
-                await UpdateAsync(order);
-            }
-            return order;
+                "oldest" => query.OrderBy(o => o.OrderDate),
+                "amount_asc" => query.OrderBy(o => o.AmountPaid),
+                "amount_desc" => query.OrderByDescending(o => o.AmountPaid),
+                "status" => query.OrderBy(o => o.OrderStatus),
+                _ => query.OrderByDescending(o => o.OrderDate),
+            };
+
+            var totalCount = await query.CountAsync();
+            var orders = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+
+            return (orders, totalCount);
+        }
+
+        public async Task<OrderStatusHistoryEntity> AddStatusHistoryAsync(
+            OrderStatusHistoryEntity history
+        )
+        {
+            await _context.OrderStatusHistories.AddAsync(history);
+            await _context.SaveChangesAsync();
+            return history;
+        }
+
+        public async Task<List<OrderStatusHistoryEntity>> GetStatusHistoryAsync(int orderId)
+        {
+            return await _context
+                .OrderStatusHistories.Where(h => h.OrderId == orderId)
+                .OrderByDescending(h => h.CreatedAt)
+                .ToListAsync();
         }
     }
 }
