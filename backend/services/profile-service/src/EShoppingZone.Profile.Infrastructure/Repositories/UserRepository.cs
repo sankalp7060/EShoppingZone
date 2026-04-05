@@ -41,7 +41,10 @@ namespace EShoppingZone.Profile.Infrastructure.Repositories
             );
 
         public async Task<IEnumerable<UserEntity>> GetAllAsync() =>
-            await _context.Users.Include(u => u.Addresses).ToListAsync();
+            await _context
+                .Users.Include(u => u.Addresses)
+                .OrderByDescending(u => u.CreatedAt)
+                .ToListAsync();
 
         public async Task<UserEntity> CreateAsync(UserEntity user)
         {
@@ -61,8 +64,8 @@ namespace EShoppingZone.Profile.Infrastructure.Repositories
             var user = await GetByIdAsync(id);
             if (user != null)
             {
-                _context.Users.Remove(user);
-                await _context.SaveChangesAsync();
+                user.IsActive = false;
+                await UpdateAsync(user);
             }
         }
 
