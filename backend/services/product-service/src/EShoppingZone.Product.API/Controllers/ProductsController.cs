@@ -463,7 +463,7 @@ namespace EShoppingZone.Product.API.Controllers
         /// Update stock quantity (for order service)
         /// </summary>
         [HttpPatch("{id}/stock")]
-        [Authorize(Roles = "Admin")]
+        [Authorize]
         public async Task<IActionResult> UpdateStock(int id, [FromBody] UpdateStockRequest request)
         {
             try
