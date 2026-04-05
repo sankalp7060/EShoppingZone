@@ -246,32 +246,52 @@ namespace EShoppingZone.Order.Application.Services
         public async Task<OrderResponse> UpdateOrderStatusAsync(
             int orderId,
             string status,
-            string userRole
+            string userRole,
+            string? remarks = null
         )
         {
             var order = await _orderRepository.GetByIdAsync(orderId);
             if (order == null)
                 throw new InvalidOperationException("Order not found");
 
-            // Validate status transition
-            var validStatuses = new[] { "Placed", "Shipped", "Delivered", "Cancelled" };
+            var validStatuses = new[]
+            {
+                "Placed",
+                "Confirmed",
+                "Processing",
+                "Shipped",
+                "OutForDelivery",
+                "Delivered",
+                "Cancelled",
+            };
             if (!validStatuses.Contains(status))
                 throw new InvalidOperationException("Invalid order status");
 
-            // Only Admin can update status beyond certain point
-            if (userRole != "Admin" && status != "Cancelled")
+            // Role-based validation
+            if (userRole == "Customer")
+            {
+                // Customer can only cancel order if not shipped
+                if (status != "Cancelled")
+                    throw new UnauthorizedAccessException("Customers can only cancel orders");
+
+                if (order.OrderStatus != "Placed" && order.OrderStatus != "Confirmed")
+                    throw new InvalidOperationException(
+                        "Cannot cancel order that is already shipped or delivered"
+                    );
+            }
+            else if (userRole != "Admin")
+            {
                 throw new UnauthorizedAccessException("Only Admin can update order status");
+            }
 
-            // Customer can only cancel if order is not shipped yet
-            if (userRole == "Customer" && status == "Cancelled" && order.OrderStatus != "Placed")
-                throw new InvalidOperationException(
-                    "Cannot cancel order that is already shipped or delivered"
-                );
-
-            order.OrderStatus = status;
-            order.UpdatedAt = DateTime.UtcNow;
-
-            await _orderRepository.UpdateAsync(order);
+            var updatedOrder = await _orderRepository.UpdateOrderStatusAsync(
+                orderId,
+                status,
+                userRole,
+                remarks
+            );
+            if (updatedOrder == null)
+                throw new InvalidOperationException("Failed to update order status");
 
             _logger.LogInformation(
                 "Order {OrderId} status updated to {Status} by {UserRole}",
@@ -280,7 +300,7 @@ namespace EShoppingZone.Order.Application.Services
                 userRole
             );
 
-            return MapToOrderResponse(order);
+            return MapToOrderResponse(updatedOrder);
         }
 
         public async Task<List<OrderResponse>> GetAllOrdersAsync(string userRole)
@@ -290,6 +310,159 @@ namespace EShoppingZone.Order.Application.Services
 
             var orders = await _orderRepository.GetAllAsync();
             return orders.Select(MapToOrderResponse).ToList();
+        }
+
+        public async Task<OrderTrackingResponse> GetOrderTrackingAsync(
+            int orderId,
+            int userId,
+            string userRole
+        )
+        {
+            OrderEntity? order;
+
+            if (userRole == "Admin")
+            {
+                order = await _orderRepository.GetByIdAsync(orderId);
+            }
+            else
+            {
+                order = await _orderRepository.GetByIdAsync(orderId);
+                if (order == null || order.CustomerId != userId)
+                    throw new UnauthorizedAccessException(
+                        "You don't have permission to view this order"
+                    );
+            }
+
+            if (order == null)
+                throw new InvalidOperationException("Order not found");
+
+            var statusHistory =
+                order
+                    .StatusHistory?.Select(h => new OrderStatusHistoryResponse
+                    {
+                        Id = h.Id,
+                        Status = h.Status,
+                        UpdatedAt = h.CreatedAt,
+                        UpdatedBy = h.UpdatedBy,
+                        Remarks = h.Remarks,
+                    })
+                    .ToList()
+                ?? new List<OrderStatusHistoryResponse>();
+
+            // Determine available actions based on current status
+            var availableActions = new List<string>();
+            var currentStatus = order.OrderStatus;
+
+            if (userRole == "Admin")
+            {
+                if (currentStatus == "Placed")
+                    availableActions.AddRange(new[] { "Confirm", "Cancel" });
+                else if (currentStatus == "Confirmed")
+                    availableActions.AddRange(new[] { "Process", "Cancel" });
+                else if (currentStatus == "Processing")
+                    availableActions.Add("Ship");
+                else if (currentStatus == "Shipped")
+                    availableActions.Add("OutForDelivery");
+                else if (currentStatus == "OutForDelivery")
+                    availableActions.Add("Deliver");
+            }
+            else if (userRole == "Customer")
+            {
+                if (currentStatus == "Placed" || currentStatus == "Confirmed")
+                    availableActions.Add("Cancel");
+            }
+
+            return new OrderTrackingResponse
+            {
+                OrderId = order.Id,
+                CurrentStatus = order.OrderStatus,
+                OrderDate = order.OrderDate,
+                EstimatedDeliveryDate = order.EstimatedDeliveryDate,
+                StatusHistory = statusHistory,
+                AvailableActions = availableActions,
+            };
+        }
+
+        public async Task<OrderListResponse> GetFilteredOrdersAsync(
+            int userId,
+            OrderFilterRequest filter,
+            string userRole
+        )
+        {
+            int? customerId = null;
+
+            if (userRole != "Admin")
+            {
+                customerId = userId;
+            }
+
+            var (orders, totalCount) = await _orderRepository.GetFilteredOrdersAsync(
+                customerId: customerId,
+                status: filter.Status,
+                fromDate: filter.FromDate,
+                toDate: filter.ToDate,
+                minAmount: filter.MinAmount,
+                maxAmount: filter.MaxAmount,
+                page: filter.Page,
+                pageSize: filter.PageSize,
+                sortBy: filter.SortBy
+            );
+
+            return new OrderListResponse
+            {
+                Orders = orders.Select(MapToOrderResponse).ToList(),
+                TotalCount = totalCount,
+                Page = filter.Page,
+                PageSize = filter.PageSize,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)filter.PageSize),
+            };
+        }
+
+        public async Task<bool> CancelOrderAsync(int orderId, int userId, string? reason = null)
+        {
+            var order = await _orderRepository.GetByIdAsync(orderId);
+
+            if (order == null)
+                throw new InvalidOperationException("Order not found");
+
+            if (order.CustomerId != userId)
+                throw new UnauthorizedAccessException(
+                    "You don't have permission to cancel this order"
+                );
+
+            if (order.OrderStatus != "Placed" && order.OrderStatus != "Confirmed")
+                throw new InvalidOperationException(
+                    "Cannot cancel order that is already shipped or delivered"
+                );
+
+            var updatedOrder = await _orderRepository.UpdateOrderStatusAsync(
+                orderId,
+                "Cancelled",
+                "Customer",
+                reason ?? "Cancelled by customer"
+            );
+
+            if (updatedOrder == null)
+                throw new InvalidOperationException("Failed to cancel order");
+
+            // If order was paid by wallet, refund the amount
+            if (order.ModeOfPayment == "EWALLET")
+            {
+                // Call wallet service to refund
+                _logger.LogInformation(
+                    "Order {OrderId} cancelled. Wallet refund needed for amount {Amount}",
+                    orderId,
+                    order.AmountPaid
+                );
+            }
+
+            _logger.LogInformation(
+                "Order {OrderId} cancelled by customer {UserId}",
+                orderId,
+                userId
+            );
+
+            return true;
         }
 
         private OrderResponse MapToOrderResponse(OrderEntity order)
