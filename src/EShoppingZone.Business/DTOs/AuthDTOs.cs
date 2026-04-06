@@ -1,0 +1,100 @@
+using System.ComponentModel.DataAnnotations;
+using EShoppingZone.Models.Entities;
+
+namespace EShoppingZone.Business.DTOs
+{
+    public class RegisterRequest
+    {
+        [Required]
+        [StringLength(200, MinimumLength = 2)]
+        public string FullName { get; set; } = string.Empty;
+
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(100, MinimumLength = 6)]
+        public string Password { get; set; } = string.Empty;
+
+        [Required]
+        public long MobileNumber { get; set; }
+        public string? Gender { get; set; }
+        public DateTime? DateOfBirth { get; set; }
+        public UserRole Role { get; set; } = UserRole.Customer;
+    }
+
+    public class LoginRequest
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        public string Password { get; set; } = string.Empty;
+    }
+
+    public class AuthResponse
+    {
+        public string Token { get; set; } = string.Empty;
+        public DateTime ExpiresAt { get; set; }
+        public string RefreshToken { get; set; } = string.Empty;
+        public DateTime RefreshTokenExpiresAt { get; set; }
+        public UserDto User { get; set; } = null!;
+    }
+
+    public class UserDto
+    {
+        public int Id { get; set; }
+        public string FullName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public long MobileNumber { get; set; }
+        public string Role { get; set; } = string.Empty;
+        public string? ProfileImage { get; set; }
+        public bool IsEmailVerified { get; set; }
+        public bool IsActive { get; set; } = true;
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+    }
+
+    public class ChangePasswordRequest
+    {
+        [Required]
+        public string CurrentPassword { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(100, MinimumLength = 6)]
+        public string NewPassword { get; set; } = string.Empty;
+    }
+
+    public class GoogleAuthRequest
+    {
+        [Required]
+        public string IdToken { get; set; } = string.Empty;
+    }
+
+    public class RefreshTokenRequest
+    {
+        [Required]
+        public string RefreshToken { get; set; } = string.Empty;
+    }
+
+    public class TokenResponse
+    {
+        public string AccessToken { get; set; } = string.Empty;
+        public string RefreshToken { get; set; } = string.Empty;
+        public DateTime AccessTokenExpiresAt { get; set; }
+        public DateTime RefreshTokenExpiresAt { get; set; }
+        public UserDto User { get; set; } = null!;
+    }
+
+    public class LogoutRequest
+    {
+        public string? RefreshToken { get; set; }
+    }
+
+    public class RevokeAllTokensRequest
+    {
+        public string? DeviceInfo { get; set; }
+    }
+}
