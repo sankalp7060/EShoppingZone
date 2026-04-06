@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using EShoppingZone.Product.Application.DTOs;
 using EShoppingZone.Product.Application.Services;
@@ -491,9 +492,9 @@ namespace EShoppingZone.Product.API.Controllers
         /// </summary>
         [HttpGet("search")]
         public async Task<IActionResult> SearchProducts(
-            [FromQuery] string name,
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 20
+            [FromQuery] [Required] [StringLength(200, MinimumLength = 1)] string name,
+            [FromQuery] [Range(1, 1000)] int page = 1,
+            [FromQuery] [Range(1, 100)] int pageSize = 20
         )
         {
             try

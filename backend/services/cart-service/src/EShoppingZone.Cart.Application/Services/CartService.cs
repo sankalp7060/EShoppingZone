@@ -85,6 +85,11 @@ namespace EShoppingZone.Cart.Application.Services
             {
                 // Update quantity
                 existingItem.Quantity += request.Quantity;
+                if (existingItem.Quantity > 999)
+                {
+                    existingItem.Quantity -= request.Quantity; // Rollback
+                    throw new InvalidOperationException("Total quantity would exceed 999");
+                }
                 existingItem.UpdatedAt = DateTime.UtcNow;
             }
             else
@@ -137,6 +142,12 @@ namespace EShoppingZone.Cart.Application.Services
 
             if (cartItem == null)
                 throw new InvalidOperationException("Cart item not found");
+
+            if (request.Quantity <= 0)
+                throw new InvalidOperationException("Quantity must be greater than 0");
+
+            if (request.Quantity > 999)
+                throw new InvalidOperationException("Quantity cannot exceed 999");
 
             cartItem.Quantity = request.Quantity;
             cartItem.UpdatedAt = DateTime.UtcNow;

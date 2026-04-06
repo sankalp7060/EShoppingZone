@@ -1,8 +1,10 @@
+using System.Text.Json;
 using EShoppingZone.Product.Application.DTOs;
 using EShoppingZone.Product.Domain.Entities;
 using EShoppingZone.Product.Infrastructure.Repositories;
 using EShoppingZone.Profile.Application.Common.Exceptions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 
 namespace EShoppingZone.Product.Application.Services
@@ -10,11 +12,17 @@ namespace EShoppingZone.Product.Application.Services
     public class ProductService : IProductService
     {
         private readonly IProductRepository _productRepository;
+        private readonly IDistributedCache _cache;
         private readonly ILogger<ProductService> _logger;
 
-        public ProductService(IProductRepository productRepository, ILogger<ProductService> logger)
+        public ProductService(
+            IProductRepository productRepository,
+            IDistributedCache cache,
+            ILogger<ProductService> logger
+        )
         {
             _productRepository = productRepository;
+            _cache = cache;
             _logger = logger;
         }
 
@@ -46,6 +54,7 @@ namespace EShoppingZone.Product.Application.Services
                 merchantId,
                 request.ProductName
             );
+            await _cache.RemoveAsync("products_all");
 
             return await MapToProductResponse(created);
         }
@@ -114,6 +123,8 @@ namespace EShoppingZone.Product.Application.Services
                 productId,
                 merchantId
             );
+            await _cache.RemoveAsync($"product_{product.Id}");
+            await _cache.RemoveAsync("products_all");
 
             return await MapToProductResponse(product);
         }
@@ -136,6 +147,8 @@ namespace EShoppingZone.Product.Application.Services
                 productId,
                 merchantId
             );
+            await _cache.RemoveAsync($"product_{productId}");
+            await _cache.RemoveAsync("products_all");
 
             return true;
         }
@@ -211,6 +224,13 @@ namespace EShoppingZone.Product.Application.Services
 
         public async Task<ProductListResponse> GetAllProductsAsync(ProductFilterRequest filter)
         {
+            var cacheKey = "products_all";
+            var cachedProducts = await _cache.GetStringAsync(cacheKey);
+
+            if (!string.IsNullOrEmpty(cachedProducts))
+            {
+                return JsonSerializer.Deserialize<ProductListResponse>(cachedProducts)!;
+            }
             var query = _productRepository.GetQueryable().Where(p => p.IsActive);
 
             // Apply filters
@@ -280,6 +300,15 @@ namespace EShoppingZone.Product.Application.Services
             {
                 productResponses.Add(await MapToProductResponse(product));
             }
+            // Cache for 15 minutes
+            await _cache.SetStringAsync(
+                cacheKey,
+                JsonSerializer.Serialize(products),
+                new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15),
+                }
+            );
 
             return new ProductListResponse
             {
@@ -293,12 +322,31 @@ namespace EShoppingZone.Product.Application.Services
 
         public async Task<ProductResponse?> GetProductByIdAsync(int productId)
         {
+            var cacheKey = $"product_{productId}";
+            var cachedProduct = await _cache.GetStringAsync(cacheKey);
+
+            if (!string.IsNullOrEmpty(cachedProduct))
+            {
+                return JsonSerializer.Deserialize<ProductResponse>(cachedProduct)!;
+            }
+
             var product = await _productRepository.GetByIdAsync(productId);
 
             if (product == null || !product.IsActive)
                 return null;
 
-            return await MapToProductResponse(product);
+            var response = await MapToProductResponse(product);
+
+            await _cache.SetStringAsync(
+                cacheKey,
+                JsonSerializer.Serialize(response),
+                new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15),
+                }
+            );
+
+            return response;
         }
 
         public async Task<ProductListResponse> GetMerchantProductsAsync(

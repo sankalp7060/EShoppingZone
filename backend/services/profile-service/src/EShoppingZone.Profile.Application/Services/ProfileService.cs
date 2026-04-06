@@ -1,7 +1,9 @@
+using System.Text.Json;
 using EShoppingZone.Profile.Application.Common.Exceptions;
 using EShoppingZone.Profile.Application.DTOs;
 using EShoppingZone.Profile.Domain.Entities;
 using EShoppingZone.Profile.Infrastructure.Repositories;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 
 namespace EShoppingZone.Profile.Application.Services
@@ -10,26 +12,49 @@ namespace EShoppingZone.Profile.Application.Services
     {
         private readonly IUserRepository _userRepository;
         private readonly IAddressRepository _addressRepository;
+        private readonly IDistributedCache _cache;
         private readonly ILogger<ProfileService> _logger;
 
         public ProfileService(
             IUserRepository userRepository,
             IAddressRepository addressRepository,
+            IDistributedCache cache,
             ILogger<ProfileService> logger
         )
         {
             _userRepository = userRepository;
             _addressRepository = addressRepository;
+            _cache = cache;
             _logger = logger;
         }
 
         public async Task<ProfileResponse> GetProfileAsync(int userId)
         {
+            var cacheKey = $"user_profile_{userId}";
+            var cachedProfile = await _cache.GetStringAsync(cacheKey);
+
+            if (!string.IsNullOrEmpty(cachedProfile))
+            {
+                return JsonSerializer.Deserialize<ProfileResponse>(cachedProfile)!;
+            }
+
             var user = await _userRepository.GetByIdAsync(userId);
             if (user == null)
                 throw new NotFoundException("User not found");
 
-            return MapToProfileResponse(user);
+            var response = MapToProfileResponse(user);
+
+            // Cache for 30 minutes
+            await _cache.SetStringAsync(
+                cacheKey,
+                JsonSerializer.Serialize(response),
+                new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30),
+                }
+            );
+
+            return response;
         }
 
         public async Task<ProfileResponse> UpdateProfileAsync(
@@ -81,6 +106,9 @@ namespace EShoppingZone.Profile.Application.Services
             await _userRepository.UpdateAsync(user);
             _logger.LogInformation("Profile updated for user {UserId}", userId);
 
+            // Invalidate cache
+            await _cache.RemoveAsync($"user_profile_{userId}");
+
             return MapToProfileResponse(user);
         }
 
@@ -121,6 +149,10 @@ namespace EShoppingZone.Profile.Application.Services
 
             var created = await _addressRepository.CreateAsync(address);
             _logger.LogInformation("New address added for user {UserId}", userId);
+
+            // Invalidate profile cache
+            await _cache.RemoveAsync($"user_profile_{userId}");
+            await _cache.RemoveAsync($"user_addresses_{userId}");
 
             return MapToAddressDto(created);
         }
@@ -253,8 +285,28 @@ namespace EShoppingZone.Profile.Application.Services
 
         public async Task<List<AddressDto>> GetAllAddressesAsync(int userId)
         {
+            var cacheKey = $"user_addresses_{userId}";
+            var cachedAddresses = await _cache.GetStringAsync(cacheKey);
+
+            if (!string.IsNullOrEmpty(cachedAddresses))
+            {
+                return JsonSerializer.Deserialize<List<AddressDto>>(cachedAddresses)!;
+            }
             var addresses = await _addressRepository.GetByUserIdAsync(userId);
-            return addresses.Select(MapToAddressDto).ToList();
+
+            var addressDtos = addresses.Select(MapToAddressDto).ToList();
+
+            // Cache for 30 minutes
+            await _cache.SetStringAsync(
+                cacheKey,
+                JsonSerializer.Serialize(addressDtos),
+                new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30),
+                }
+            );
+
+            return addressDtos;
         }
 
         public async Task<AddressDto?> GetAddressByIdAsync(int userId, int addressId)

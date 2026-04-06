@@ -5,6 +5,7 @@ using EShoppingZone.Order.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using StackExchange.Redis;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -27,6 +28,14 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
             npgsqlOptions.CommandTimeout(30);
         }
     );
+});
+
+// Configure Redis for caching
+var redisConnection = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = redisConnection;
+    options.InstanceName = "EShoppingZone_Order_";
 });
 
 builder.Services.AddHttpClient<IProfileServiceClient, ProfileServiceClient>(client =>
@@ -133,7 +142,7 @@ app.MapHealthChecks("/health");
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await dbContext.Database.EnsureCreatedAsync();
+    await dbContext.Database.MigrateAsync();
 }
 
 app.Run();

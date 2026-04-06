@@ -81,10 +81,27 @@ namespace EShoppingZone.Product.API.Controllers
                         new { success = false, message = "Maximum 10 images allowed per upload" }
                     );
 
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
                 var uploadedUrls = new List<string>();
 
                 foreach (var file in files)
                 {
+                    if (file == null || file.Length == 0)
+                        return BadRequest(
+                            new { success = false, message = $"File '{file?.FileName}' is empty" }
+                        );
+
+                    var extension = Path.GetExtension(file.FileName).ToLower();
+                    if (!allowedExtensions.Contains(extension))
+                        return BadRequest(
+                            new { success = false, message = $"Invalid file: {file.FileName}" }
+                        );
+
+                    if (file.Length > 5 * 1024 * 1024) // 5MB per file
+                        return BadRequest(
+                            new { success = false, message = $"File '{file.FileName}' exceeds 5MB" }
+                        );
+
                     var imageUrl = await _cloudinaryService.UploadImageAsync(file);
                     uploadedUrls.Add(imageUrl);
                 }

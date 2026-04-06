@@ -13,6 +13,7 @@ namespace EShoppingZone.Order.Application.Services
             string token
         );
         Task<WalletBalanceResponse> GetWalletBalanceAsync(int userId, string token);
+        Task<bool> RefundAsync(int userId, int orderId, int transactionId, string token);
     }
 
     public class WalletPaymentResult
@@ -118,6 +119,39 @@ namespace EShoppingZone.Order.Application.Services
             {
                 _logger.LogError(ex, "Error getting wallet balance");
                 return new WalletBalanceResponse { CurrentBalance = 0, UserId = userId };
+            }
+        }
+
+        public async Task<bool> RefundAsync(
+            int userId,
+            int orderId,
+            int transactionId,
+            string token
+        )
+        {
+            try
+            {
+                _httpClient.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+                var request = new
+                {
+                    orderId = orderId,
+                    transactionId = transactionId,
+                    remarks = $"Refund for order #{orderId}",
+                };
+
+                var response = await _httpClient.PostAsJsonAsync(
+                    $"http://localhost:5005/api/wallet/refund",
+                    request
+                );
+
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing refund");
+                return false;
             }
         }
     }

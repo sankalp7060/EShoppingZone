@@ -1,7 +1,9 @@
+using System.Text.Json;
 using EShoppingZone.Wallet.Application.DTOs;
 using EShoppingZone.Wallet.Domain.Entities;
 using EShoppingZone.Wallet.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 
 namespace EShoppingZone.Wallet.Application.Services
@@ -9,11 +11,17 @@ namespace EShoppingZone.Wallet.Application.Services
     public class WalletService : IWalletService
     {
         private readonly IWalletRepository _walletRepository;
+        private readonly IDistributedCache _cache;
         private readonly ILogger<WalletService> _logger;
 
-        public WalletService(IWalletRepository walletRepository, ILogger<WalletService> logger)
+        public WalletService(
+            IWalletRepository walletRepository,
+            IDistributedCache cache,
+            ILogger<WalletService> logger
+        )
         {
             _walletRepository = walletRepository;
+            _cache = cache;
             _logger = logger;
         }
 
@@ -41,12 +49,32 @@ namespace EShoppingZone.Wallet.Application.Services
 
         public async Task<WalletResponse> GetWalletByUserIdAsync(int userId)
         {
+            var cacheKey = $"wallet_{userId}";
+            var cachedWallet = await _cache.GetStringAsync(cacheKey);
+
+            if (!string.IsNullOrEmpty(cachedWallet))
+            {
+                return JsonSerializer.Deserialize<WalletResponse>(cachedWallet)!;
+            }
+
             var wallet = await _walletRepository.GetByUserIdAsync(userId);
 
             if (wallet == null)
                 throw new InvalidOperationException("Wallet not found for this user");
 
-            return MapToWalletResponse(wallet);
+            var response = MapToWalletResponse(wallet);
+
+            // Cache for 15 minutes
+            await _cache.SetStringAsync(
+                cacheKey,
+                JsonSerializer.Serialize(response),
+                new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15),
+                }
+            );
+
+            return response;
         }
 
         public async Task<TransactionResponse> AddMoneyAsync(int userId, AddMoneyRequest request)
@@ -89,6 +117,9 @@ namespace EShoppingZone.Wallet.Application.Services
                 wallet.CurrentBalance
             );
 
+            // Invalidate cache
+            await _cache.RemoveAsync($"wallet_{userId}");
+
             return new TransactionResponse
             {
                 Success = true,
@@ -111,6 +142,16 @@ namespace EShoppingZone.Wallet.Application.Services
                 throw new InvalidOperationException(
                     $"Insufficient balance. Current balance: {wallet.CurrentBalance:C}, Required: {request.Amount:C}"
                 );
+
+            try
+            {
+                await _walletRepository.UpdateAsync(wallet); // Will fail if changed
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // Retry or fail gracefully
+                throw new InvalidOperationException("Balance changed - please try again");
+            }
 
             // Deduct money from wallet
             var oldBalance = wallet.CurrentBalance;
@@ -143,6 +184,8 @@ namespace EShoppingZone.Wallet.Application.Services
                 request.OrderId,
                 wallet.CurrentBalance
             );
+            // Invalidate cache
+            await _cache.RemoveAsync($"wallet_{userId}");
 
             return new TransactionResponse
             {
@@ -169,6 +212,13 @@ namespace EShoppingZone.Wallet.Application.Services
 
         public async Task<List<StatementResponse>> GetStatementsAsync(int userId)
         {
+            var cacheKey = $"wallet_transactions_{userId}";
+            var cachedTransactions = await _cache.GetStringAsync(cacheKey);
+
+            if (!string.IsNullOrEmpty(cachedTransactions))
+            {
+                return JsonSerializer.Deserialize<List<StatementResponse>>(cachedTransactions)!;
+            }
             var wallet = await _walletRepository.GetByUserIdAsync(userId);
 
             if (wallet == null)
@@ -176,7 +226,19 @@ namespace EShoppingZone.Wallet.Application.Services
 
             var statements = await _walletRepository.GetStatementsByWalletIdAsync(wallet.Id);
 
-            return statements.Select(MapToStatementResponse).ToList();
+            var response = statements.Select(MapToStatementResponse).ToList();
+
+            // Cache for 10 minutes
+            await _cache.SetStringAsync(
+                cacheKey,
+                JsonSerializer.Serialize(response),
+                new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10),
+                }
+            );
+
+            return response;
         }
 
         public async Task<StatementResponse?> GetStatementByIdAsync(int userId, int statementId)

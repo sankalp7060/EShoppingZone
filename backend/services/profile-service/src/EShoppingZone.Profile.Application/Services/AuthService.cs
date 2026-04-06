@@ -2,12 +2,14 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using BCrypt.Net;
 using EShoppingZone.Profile.Application.Common.Exceptions;
 using EShoppingZone.Profile.Application.DTOs;
 using EShoppingZone.Profile.Domain.Entities;
 using EShoppingZone.Profile.Infrastructure.Repositories;
 using Google.Apis.Auth;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
@@ -19,18 +21,21 @@ namespace EShoppingZone.Profile.Application.Services
         private readonly IUserRepository _userRepository;
         private readonly IRefreshTokenRepository _refreshTokenRepository;
         private readonly IConfiguration _configuration;
+        private readonly IDistributedCache _cache;
         private readonly ILogger<AuthService> _logger;
 
         public AuthService(
             IUserRepository userRepository,
             IRefreshTokenRepository refreshTokenRepository,
             IConfiguration configuration,
+            IDistributedCache cache,
             ILogger<AuthService> logger
         )
         {
             _userRepository = userRepository;
             _refreshTokenRepository = refreshTokenRepository;
             _configuration = configuration;
+            _cache = cache;
             _logger = logger;
         }
 
@@ -101,6 +106,23 @@ namespace EShoppingZone.Profile.Application.Services
             await _userRepository.UpdateAsync(user);
 
             _logger.LogInformation("User logged in: {Email}", user.Email);
+
+            // Store user session in cache
+            await _cache.SetStringAsync(
+                $"user_session_{user.Id}",
+                JsonSerializer.Serialize(
+                    new
+                    {
+                        user.Id,
+                        user.Email,
+                        LoginTime = DateTime.UtcNow,
+                    }
+                ),
+                new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24),
+                }
+            );
 
             return await GenerateAuthResponse(user);
         }
@@ -316,6 +338,9 @@ namespace EShoppingZone.Profile.Application.Services
             {
                 await RevokeRefreshTokenAsync(refreshToken);
             }
+
+            // Remove user session cache
+            await _cache.RemoveAsync($"user_session_{userId}");
 
             _logger.LogInformation("User logged out: {UserId}", userId);
             await Task.CompletedTask;
