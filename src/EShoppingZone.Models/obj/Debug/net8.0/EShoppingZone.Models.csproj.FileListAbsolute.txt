@@ -1,0 +1,16 @@
+C:\EShoppingZone\EShoppingZone.Monolith\src\EShoppingZone.Models\bin\Debug\net8.0\EShoppingZone.Models.deps.json
+C:\EShoppingZone\EShoppingZone.Monolith\src\EShoppingZone.Models\bin\Debug\net8.0\EShoppingZone.Models.dll
+C:\EShoppingZone\EShoppingZone.Monolith\src\EShoppingZone.Models\bin\Debug\net8.0\EShoppingZone.Models.pdb
+C:\EShoppingZone\EShoppingZone.Monolith\src\EShoppingZone.Models\bin\Debug\net8.0\EShoppingZone.Common.dll
+C:\EShoppingZone\EShoppingZone.Monolith\src\EShoppingZone.Models\bin\Debug\net8.0\EShoppingZone.Common.pdb
+C:\EShoppingZone\EShoppingZone.Monolith\src\EShoppingZone.Models\obj\Debug\net8.0\EShoppingZone.Models.csproj.AssemblyReference.cache
+C:\EShoppingZone\EShoppingZone.Monolith\src\EShoppingZone.Models\obj\Debug\net8.0\EShoppingZone.Models.GeneratedMSBuildEditorConfig.editorconfig
+C:\EShoppingZone\EShoppingZone.Monolith\src\EShoppingZone.Models\obj\Debug\net8.0\EShoppingZone.Models.AssemblyInfoInputs.cache
+C:\EShoppingZone\EShoppingZone.Monolith\src\EShoppingZone.Models\obj\Debug\net8.0\EShoppingZone.Models.AssemblyInfo.cs
+C:\EShoppingZone\EShoppingZone.Monolith\src\EShoppingZone.Models\obj\Debug\net8.0\EShoppingZone.Models.csproj.CoreCompileInputs.cache
+C:\EShoppingZone\EShoppingZone.Monolith\src\EShoppingZone.Models\obj\Debug\net8.0\EShoppingZone.Models.sourcelink.json
+C:\EShoppingZone\EShoppingZone.Monolith\src\EShoppingZone.Models\obj\Debug\net8.0\EShoppin.83239809.Up2Date
+C:\EShoppingZone\EShoppingZone.Monolith\src\EShoppingZone.Models\obj\Debug\net8.0\EShoppingZone.Models.dll
+C:\EShoppingZone\EShoppingZone.Monolith\src\EShoppingZone.Models\obj\Debug\net8.0\refint\EShoppingZone.Models.dll
+C:\EShoppingZone\EShoppingZone.Monolith\src\EShoppingZone.Models\obj\Debug\net8.0\EShoppingZone.Models.pdb
+C:\EShoppingZone\EShoppingZone.Monolith\src\EShoppingZone.Models\obj\Debug\net8.0\ref\EShoppingZone.Models.dll
