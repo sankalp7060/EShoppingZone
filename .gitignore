@@ -1,0 +1,18 @@
+# Build folders
+bin/
+obj/
+
+# Visual Studio / IDE files
+*.user
+*.suo
+*.vscode/
+.vs/
+
+# NuGet packages
+*.nupkg
+packages/
+*.snupkg
+
+# Others
+*.log
+*.db
