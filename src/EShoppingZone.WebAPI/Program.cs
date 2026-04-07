@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using EShoppingZone.Business.Services;
 using EShoppingZone.Data.Context;
 using EShoppingZone.Data.Repositories;
@@ -12,7 +13,12 @@ AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to container
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Allow enums to be serialized/deserialized as strings (e.g. "Customer", "Merchant")
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -132,11 +138,11 @@ builder.Services.AddAuthorization();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(
-        "AllowFrontend",
+        "AllowReactApp",
         policy =>
         {
             policy
-                .WithOrigins("http://localhost:3000", "http://localhost:5173")
+                .SetIsOriginAllowed(origin => true) // Allow any origin in development
                 .AllowAnyMethod()
                 .AllowAnyHeader()
                 .AllowCredentials();
@@ -156,7 +162,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowFrontend");
+app.UseCors("AllowReactApp");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

@@ -117,29 +117,73 @@ namespace EShoppingZone.Business.Services
         {
             try
             {
-                var settings = new GoogleJsonWebSignature.ValidationSettings
-                {
-                    Audience = new[] { _configuration["Google:ClientId"] },
-                };
+                string email, name, picture;
+                bool emailVerified;
 
-                var payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, settings);
-                var user = await _userRepository.GetByOAuthAsync("Google", payload.Email);
+                // Detect if this is a Google ID token (JWT) or an OAuth2 access token
+                // JWT tokens have 3 dot-separated base64 parts; access tokens don't
+                bool isJwt = request.IdToken.Split('.').Length == 3;
+
+                if (isJwt)
+                {
+                    // Validate as a proper Google ID token (JWT)
+                    var settings = new GoogleJsonWebSignature.ValidationSettings
+                    {
+                        Audience = new[] { _configuration["Google:ClientId"] },
+                    };
+                    var payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, settings);
+                    email = payload.Email;
+                    name = payload.Name;
+                    picture = payload.Picture;
+                    emailVerified = payload.EmailVerified;
+                }
+                else
+                {
+                    // It's an OAuth2 access token — call Google's userinfo endpoint
+                    using var httpClient = new System.Net.Http.HttpClient();
+                    httpClient.DefaultRequestHeaders.Authorization =
+                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", request.IdToken);
+
+                    var userInfoResponse = await httpClient.GetAsync(
+                        "https://www.googleapis.com/oauth2/v3/userinfo"
+                    );
+
+                    if (!userInfoResponse.IsSuccessStatusCode)
+                        throw new UnauthorizedAccessException("Failed to verify Google access token");
+
+                    var userInfoJson = await userInfoResponse.Content.ReadAsStringAsync();
+                    var userInfo = System.Text.Json.JsonSerializer.Deserialize<GoogleUserInfo>(
+                        userInfoJson,
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                    );
+
+                    if (userInfo == null || string.IsNullOrEmpty(userInfo.Email))
+                        throw new UnauthorizedAccessException("Could not retrieve Google user info");
+
+                    email = userInfo.Email;
+                    name = userInfo.Name ?? userInfo.Email;
+                    picture = userInfo.Picture ?? string.Empty;
+                    emailVerified = userInfo.Email_Verified;
+                }
+
+                // Find or create the user
+                var user = await _userRepository.GetByOAuthAsync("Google", email);
 
                 if (user == null)
                 {
-                    user = await _userRepository.GetByEmailAsync(payload.Email);
+                    user = await _userRepository.GetByEmailAsync(email);
 
                     if (user == null)
                     {
                         user = new UserEntity
                         {
-                            FullName = payload.Name,
-                            Email = payload.Email,
-                            ProfileImage = payload.Picture,
+                            FullName = name,
+                            Email = email,
+                            ProfileImage = picture,
                             OAuthProvider = "Google",
-                            OAuthId = payload.Email,
+                            OAuthId = email,
                             Role = UserRole.Customer,
-                            IsEmailVerified = payload.EmailVerified,
+                            IsEmailVerified = emailVerified,
                             IsActive = true,
                             CreatedAt = DateTime.UtcNow,
                         };
@@ -149,9 +193,9 @@ namespace EShoppingZone.Business.Services
                     else
                     {
                         user.OAuthProvider = "Google";
-                        user.OAuthId = payload.Email;
-                        user.IsEmailVerified = payload.EmailVerified;
-                        user.ProfileImage ??= payload.Picture;
+                        user.OAuthId = email;
+                        user.IsEmailVerified = emailVerified;
+                        user.ProfileImage ??= picture;
                         await _userRepository.UpdateAsync(user);
                         _logger.LogInformation(
                             "Google linked to existing account: {Email}",
@@ -161,9 +205,9 @@ namespace EShoppingZone.Business.Services
                 }
                 else
                 {
-                    user.FullName = payload.Name;
-                    user.ProfileImage = payload.Picture;
-                    user.IsEmailVerified = payload.EmailVerified;
+                    user.FullName = name;
+                    user.ProfileImage = picture;
+                    user.IsEmailVerified = emailVerified;
                 }
 
                 user.LastLoginAt = DateTime.UtcNow;
@@ -173,9 +217,30 @@ namespace EShoppingZone.Business.Services
             }
             catch (InvalidJwtException ex)
             {
-                _logger.LogError(ex, "Invalid Google token");
+                _logger.LogError(ex, "Invalid Google ID token");
                 throw new UnauthorizedAccessException("Invalid Google token");
             }
+            catch (UnauthorizedAccessException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Google login failed");
+                throw new UnauthorizedAccessException("Google authentication failed");
+            }
+        }
+
+        // Helper class for Google userinfo API response
+        private class GoogleUserInfo
+        {
+            public string? Sub { get; set; }
+            public string? Email { get; set; }
+            public bool Email_Verified { get; set; }
+            public string? Name { get; set; }
+            public string? Picture { get; set; }
+            public string? Given_Name { get; set; }
+            public string? Family_Name { get; set; }
         }
 
         public async Task<TokenResponse> RefreshTokenAsync(RefreshTokenRequest request)
