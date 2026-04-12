@@ -13,7 +13,6 @@ namespace EShoppingZone.Cart.Infrastructure.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.HasDefaultSchema("cart");
             base.OnModelCreating(modelBuilder);
 
             modelBuilder.Entity<CartEntity>(entity =>

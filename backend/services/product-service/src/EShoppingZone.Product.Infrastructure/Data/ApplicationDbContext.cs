@@ -13,7 +13,6 @@ namespace EShoppingZone.Product.Infrastructure.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.HasDefaultSchema("product");
             base.OnModelCreating(modelBuilder);
 
             modelBuilder.Entity<ProductEntity>(entity =>
