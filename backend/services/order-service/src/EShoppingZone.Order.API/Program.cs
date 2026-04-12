@@ -25,7 +25,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         {
             npgsqlOptions.EnableRetryOnFailure(3);
             npgsqlOptions.CommandTimeout(30);
-            npgsqlOptions.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
+            npgsqlOptions.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.GetName().Name);
         }
     );
 });
@@ -130,11 +130,20 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 
-// Apply migrations instead of EnsureCreatedAsync
+// Apply migrations safely
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await dbContext.Database.MigrateAsync();
+    try
+    {
+        Console.WriteLine("Applying Order database migrations...");
+        await dbContext.Database.MigrateAsync();
+        Console.WriteLine("Order migration successful!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"MIGRATION FAILED for Order: {ex.Message}");
+    }
 }
 
 app.Run();

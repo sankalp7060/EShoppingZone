@@ -27,7 +27,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         npgsqlOptions =>
-            npgsqlOptions.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)
+            npgsqlOptions.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.GetName().Name)
     )
 );
 
@@ -109,11 +109,20 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 
-// Apply migrations
+// Apply migrations safely
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await dbContext.Database.MigrateAsync();
+    try
+    {
+        Console.WriteLine("Applying Profile database migrations...");
+        await dbContext.Database.MigrateAsync();
+        Console.WriteLine("Profile migration successful!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"MIGRATION FAILED for Profile: {ex.Message}");
+    }
 }
 
 app.Run();
