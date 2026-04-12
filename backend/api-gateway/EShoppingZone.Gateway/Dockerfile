@@ -8,12 +8,12 @@ ENV ASPNETCORE_URLS=http://+:8080
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy EVERYTHING to maintain relative paths
+# Context is set to 'backend' folder
 COPY . .
 
 # Restore and Build
-RUN dotnet restore "backend/api-gateway/EShoppingZone.Gateway/EShoppingZone.Gateway.csproj"
-WORKDIR "/src/backend/api-gateway/EShoppingZone.Gateway"
+RUN dotnet restore "api-gateway/EShoppingZone.Gateway/EShoppingZone.Gateway.csproj"
+WORKDIR "/src/api-gateway/EShoppingZone.Gateway"
 RUN dotnet build "EShoppingZone.Gateway.csproj" -c Release -o /app/build
 
 FROM build AS publish

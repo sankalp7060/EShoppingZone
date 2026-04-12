@@ -8,12 +8,12 @@ ENV ASPNETCORE_URLS=http://+:8080
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy EVERYTHING to maintain relative paths like ../../../../shared
+# Context is set to 'backend' folder in Render Settings
 COPY . .
 
-# Restore and Build using the full repo path
-RUN dotnet restore "backend/services/profile-service/src/EShoppingZone.Profile.API/EShoppingZone.Profile.API.csproj"
-WORKDIR "/src/backend/services/profile-service/src/EShoppingZone.Profile.API"
+# Restore and Build
+RUN dotnet restore "services/profile-service/src/EShoppingZone.Profile.API/EShoppingZone.Profile.API.csproj"
+WORKDIR "/src/services/profile-service/src/EShoppingZone.Profile.API"
 RUN dotnet build "EShoppingZone.Profile.API.csproj" -c Release -o /app/build
 
 FROM build AS publish

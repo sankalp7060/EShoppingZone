@@ -8,12 +8,12 @@ ENV ASPNETCORE_URLS=http://+:8080
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy EVERYTHING to maintain relative paths
+# Context is set to 'backend' folder in Render
 COPY . .
 
 # Restore and Build
-RUN dotnet restore "backend/services/product-service/src/EShoppingZone.Product.API/EShoppingZone.Product.API.csproj"
-WORKDIR "/src/backend/services/product-service/src/EShoppingZone.Product.API"
+RUN dotnet restore "services/product-service/src/EShoppingZone.Product.API/EShoppingZone.Product.API.csproj"
+WORKDIR "/src/services/product-service/src/EShoppingZone.Product.API"
 RUN dotnet build "EShoppingZone.Product.API.csproj" -c Release -o /app/build
 
 FROM build AS publish
