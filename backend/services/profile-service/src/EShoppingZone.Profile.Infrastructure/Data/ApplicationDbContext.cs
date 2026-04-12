@@ -14,6 +14,7 @@ namespace EShoppingZone.Profile.Infrastructure.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.HasDefaultSchema("profile");
             base.OnModelCreating(modelBuilder);
 
             modelBuilder.Entity<UserEntity>(entity =>

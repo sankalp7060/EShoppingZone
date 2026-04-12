@@ -13,6 +13,7 @@ namespace EShoppingZone.Product.Infrastructure.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.HasDefaultSchema("product");
             base.OnModelCreating(modelBuilder);
 
             modelBuilder.Entity<ProductEntity>(entity =>
@@ -38,19 +39,34 @@ namespace EShoppingZone.Product.Infrastructure.Data
 
                 var dictionaryComparer = new ValueComparer<Dictionary<int, double>>(
                     (c1, c2) => c1.SequenceEqual(c2),
-                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.Key.GetHashCode(), v.Value.GetHashCode())),
+                    c =>
+                        c.Aggregate(
+                            0,
+                            (a, v) =>
+                                HashCode.Combine(a, v.Key.GetHashCode(), v.Value.GetHashCode())
+                        ),
                     c => new Dictionary<int, double>(c)
                 );
 
                 var reviewsComparer = new ValueComparer<Dictionary<int, string>>(
                     (c1, c2) => c1.SequenceEqual(c2),
-                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.Key.GetHashCode(), v.Value.GetHashCode())),
+                    c =>
+                        c.Aggregate(
+                            0,
+                            (a, v) =>
+                                HashCode.Combine(a, v.Key.GetHashCode(), v.Value.GetHashCode())
+                        ),
                     c => new Dictionary<int, string>(c)
                 );
 
                 var specificationsComparer = new ValueComparer<Dictionary<string, string>>(
                     (c1, c2) => c1.SequenceEqual(c2),
-                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.Key.GetHashCode(), v.Value.GetHashCode())),
+                    c =>
+                        c.Aggregate(
+                            0,
+                            (a, v) =>
+                                HashCode.Combine(a, v.Key.GetHashCode(), v.Value.GetHashCode())
+                        ),
                     c => new Dictionary<string, string>(c)
                 );
 
@@ -58,8 +74,16 @@ namespace EShoppingZone.Product.Infrastructure.Data
                     .Property(e => e.Ratings)
                     .HasColumnType("jsonb")
                     .HasConversion(
-                        v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
-                        v => System.Text.Json.JsonSerializer.Deserialize<Dictionary<int, double>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new Dictionary<int, double>()
+                        v =>
+                            System.Text.Json.JsonSerializer.Serialize(
+                                v,
+                                (System.Text.Json.JsonSerializerOptions?)null
+                            ),
+                        v =>
+                            System.Text.Json.JsonSerializer.Deserialize<Dictionary<int, double>>(
+                                v,
+                                (System.Text.Json.JsonSerializerOptions?)null
+                            ) ?? new Dictionary<int, double>()
                     )
                     .Metadata.SetValueComparer(dictionaryComparer);
 
@@ -67,8 +91,16 @@ namespace EShoppingZone.Product.Infrastructure.Data
                     .Property(e => e.Images)
                     .HasColumnType("jsonb")
                     .HasConversion(
-                        v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
-                        v => System.Text.Json.JsonSerializer.Deserialize<List<string>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new List<string>()
+                        v =>
+                            System.Text.Json.JsonSerializer.Serialize(
+                                v,
+                                (System.Text.Json.JsonSerializerOptions?)null
+                            ),
+                        v =>
+                            System.Text.Json.JsonSerializer.Deserialize<List<string>>(
+                                v,
+                                (System.Text.Json.JsonSerializerOptions?)null
+                            ) ?? new List<string>()
                     )
                     .Metadata.SetValueComparer(stringListComparer);
 
@@ -76,8 +108,16 @@ namespace EShoppingZone.Product.Infrastructure.Data
                     .Property(e => e.Specifications)
                     .HasColumnType("jsonb")
                     .HasConversion(
-                        v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
-                        v => System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new Dictionary<string, string>()
+                        v =>
+                            System.Text.Json.JsonSerializer.Serialize(
+                                v,
+                                (System.Text.Json.JsonSerializerOptions?)null
+                            ),
+                        v =>
+                            System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(
+                                v,
+                                (System.Text.Json.JsonSerializerOptions?)null
+                            ) ?? new Dictionary<string, string>()
                     )
                     .Metadata.SetValueComparer(specificationsComparer);
 

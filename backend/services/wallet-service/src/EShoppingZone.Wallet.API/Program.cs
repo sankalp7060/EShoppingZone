@@ -21,13 +21,12 @@ Console.WriteLine("CONNECTION STRING: " + connectionString);
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseNpgsql(
-        connectionString,
+        builder.Configuration.GetConnectionString("DefaultConnection"),
         npgsqlOptions =>
         {
             npgsqlOptions.EnableRetryOnFailure(3);
             npgsqlOptions.CommandTimeout(30);
-            npgsqlOptions.MigrationsHistoryTable("__WalletHistory_v2");
-            npgsqlOptions.MigrationsAssembly("EShoppingZone.Wallet.Infrastructure");
+            npgsqlOptions.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
         }
     );
 });

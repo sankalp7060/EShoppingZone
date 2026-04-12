@@ -27,9 +27,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         npgsqlOptions =>
-            npgsqlOptions
-                .MigrationsHistoryTable("__ProfileHistory_v2")
-                .MigrationsAssembly("EShoppingZone.Profile.Infrastructure")
+            npgsqlOptions.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)
     )
 );
 

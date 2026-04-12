@@ -21,13 +21,12 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseNpgsql(
-        connectionString,
+        builder.Configuration.GetConnectionString("DefaultConnection"),
         npgsqlOptions =>
         {
             npgsqlOptions.EnableRetryOnFailure(3);
             npgsqlOptions.CommandTimeout(30);
-            npgsqlOptions.MigrationsHistoryTable("__CartHistory_v2");
-            npgsqlOptions.MigrationsAssembly("EShoppingZone.Cart.Infrastructure");
+            npgsqlOptions.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
         }
     );
 });

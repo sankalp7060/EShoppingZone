@@ -20,17 +20,15 @@ Console.WriteLine($"Using Connection String: {connectionString}");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseNpgsql(
-        connectionString,
+        builder.Configuration.GetConnectionString("DefaultConnection"),
         npgsqlOptions =>
         {
             npgsqlOptions.EnableRetryOnFailure(3);
             npgsqlOptions.CommandTimeout(30);
-            npgsqlOptions.MigrationsHistoryTable("__ProductHistory_v2");
-            npgsqlOptions.MigrationsAssembly("EShoppingZone.Product.Infrastructure");
+            npgsqlOptions.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
         }
     );
     options.EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
-    options.EnableDetailedErrors(builder.Environment.IsDevelopment());
 });
 
 // Register repositories
