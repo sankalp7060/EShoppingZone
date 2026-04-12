@@ -20,6 +20,7 @@ namespace EShoppingZone.Order.Infrastructure.Repositories
         Task<bool> ExistsAsync(int orderId);
         Task<(List<OrderEntity> Orders, int TotalCount)> GetFilteredOrdersAsync(
             int? customerId = null,
+            int? merchantId = null,
             string? status = null,
             DateTime? fromDate = null,
             DateTime? toDate = null,
@@ -65,14 +66,16 @@ namespace EShoppingZone.Order.Infrastructure.Repositories
         public async Task<OrderEntity?> GetByIdAsync(int id)
         {
             return await _context
-                .Orders.Include(o => o.StatusHistory)
+                .Orders
+                .Include(o => o.StatusHistory)
                 .FirstOrDefaultAsync(o => o.Id == id && o.IsActive);
         }
 
         public async Task<List<OrderEntity>> GetByCustomerIdAsync(int customerId)
         {
             return await _context
-                .Orders.Include(o => o.StatusHistory)
+                .Orders
+                .Include(o => o.StatusHistory)
                 .Where(o => o.CustomerId == customerId && o.IsActive)
                 .OrderByDescending(o => o.OrderDate)
                 .ToListAsync();
@@ -136,7 +139,8 @@ namespace EShoppingZone.Order.Infrastructure.Repositories
         public async Task<List<OrderEntity>> GetAllAsync()
         {
             return await _context
-                .Orders.Include(o => o.StatusHistory)
+                .Orders
+                .Include(o => o.StatusHistory)
                 .Where(o => o.IsActive)
                 .OrderByDescending(o => o.OrderDate)
                 .ToListAsync();
@@ -149,6 +153,7 @@ namespace EShoppingZone.Order.Infrastructure.Repositories
 
         public async Task<(List<OrderEntity> Orders, int TotalCount)> GetFilteredOrdersAsync(
             int? customerId = null,
+            int? merchantId = null,
             string? status = null,
             DateTime? fromDate = null,
             DateTime? toDate = null,
@@ -159,10 +164,15 @@ namespace EShoppingZone.Order.Infrastructure.Repositories
             string? sortBy = "newest"
         )
         {
-            var query = _context.Orders.Include(o => o.StatusHistory).Where(o => o.IsActive);
+            var query = _context.Orders
+                .Include(o => o.StatusHistory)
+                .Where(o => o.IsActive);
 
             if (customerId.HasValue)
                 query = query.Where(o => o.CustomerId == customerId.Value);
+
+            if (merchantId.HasValue)
+                query = query.Where(o => o.MerchantId == merchantId.Value);
 
             if (!string.IsNullOrEmpty(status))
                 query = query.Where(o => o.OrderStatus == status);

@@ -22,6 +22,7 @@ namespace EShoppingZone.Order.Infrastructure.Data
                 entity.ToTable("Orders");
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.OrderId).ValueGeneratedOnAdd();
+                entity.Property(e => e.CustomerName).HasMaxLength(200);
                 entity.Property(e => e.AmountPaid).HasPrecision(18, 2);
                 entity.Property(e => e.ModeOfPayment).HasMaxLength(20);
                 entity.Property(e => e.OrderStatus).HasMaxLength(20);
@@ -55,6 +56,7 @@ namespace EShoppingZone.Order.Infrastructure.Data
                     .Metadata.SetValueComparer(orderItemsComparer);
 
                 entity.HasIndex(e => e.CustomerId);
+                entity.HasIndex(e => e.MerchantId);
                 entity.HasIndex(e => e.OrderStatus);
                 entity.HasIndex(e => e.OrderDate);
                 entity.HasIndex(e => e.EstimatedDeliveryDate);

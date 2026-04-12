@@ -19,6 +19,11 @@ namespace EShoppingZone.Profile.Application.DTOs
         public int DeliveredOrders { get; set; }
         public int CancelledOrders { get; set; }
         public decimal TotalRevenue { get; set; }
+
+        // Trend data (last 7 days)
+        public List<int> IdentityTrend { get; set; } = new();
+        public List<int> ThroughputTrend { get; set; } = new();
+        public List<decimal> RevenueTrend { get; set; } = new();
     }
 
     public class RevenueAnalyticsResponse

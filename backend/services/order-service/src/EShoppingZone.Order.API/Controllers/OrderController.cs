@@ -209,7 +209,7 @@ namespace EShoppingZone.Order.API.Controllers
         /// Update order status with remarks (Admin only)
         /// </summary>
         [HttpPut("{id}/status")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,DeliveryAgent,Merchant")]
         public async Task<IActionResult> UpdateOrderStatus(
             int id,
             [FromBody] UpdateOrderStatusWithRemarksRequest request
@@ -218,10 +218,12 @@ namespace EShoppingZone.Order.API.Controllers
             try
             {
                 var userRole = GetCurrentUserRole();
+                var userId = GetCurrentUserId();
                 var order = await _orderService.UpdateOrderStatusAsync(
                     id,
                     request.OrderStatus,
                     userRole,
+                    userId,
                     request.Remarks
                 );
                 return Ok(
@@ -258,7 +260,12 @@ namespace EShoppingZone.Order.API.Controllers
             try
             {
                 var userId = GetCurrentUserId();
-                var result = await _orderService.CancelOrderAsync(id, userId, request?.Reason);
+                var token = HttpContext
+                    .Request.Headers["Authorization"]
+                    .ToString()
+                    .Replace("Bearer ", "");
+
+                var result = await _orderService.CancelOrderAsync(id, userId, token, request?.Reason);
                 return Ok(new { success = true, message = "Order cancelled successfully" });
             }
             catch (InvalidOperationException ex)
@@ -280,7 +287,7 @@ namespace EShoppingZone.Order.API.Controllers
         /// Get all orders (Admin only)
         /// </summary>
         [HttpGet("admin/all")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,DeliveryAgent")]
         public async Task<IActionResult> GetAllOrders([FromQuery] OrderFilterRequest filter)
         {
             try
@@ -297,6 +304,28 @@ namespace EShoppingZone.Order.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting all orders");
+                return StatusCode(500, new { success = false, message = "Internal server error" });
+            }
+        }
+        /// <summary>
+        /// Get orders containing the merchant's products
+        /// </summary>
+        [HttpGet("merchant/orders")]
+        [Authorize(Roles = "Merchant")]
+        public async Task<IActionResult> GetMerchantOrders([FromQuery] OrderFilterRequest filter)
+        {
+            try
+            {
+                var merchantId = GetCurrentUserId();
+                var result = await _orderService.GetFilteredOrdersByMerchantAsync(
+                    merchantId,
+                    filter
+                );
+                return Ok(new { success = true, data = result });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting merchant orders");
                 return StatusCode(500, new { success = false, message = "Internal server error" });
             }
         }

@@ -13,6 +13,8 @@ namespace EShoppingZone.Wallet.Infrastructure.Repositories
         Task<List<StatementEntity>> GetStatementsByWalletIdAsync(int walletId);
         Task<StatementEntity?> GetStatementByIdAsync(int statementId);
         Task<bool> WalletExistsAsync(int userId);
+        Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync();
+        Microsoft.EntityFrameworkCore.Storage.IExecutionStrategy CreateExecutionStrategy();
     }
 
     public class WalletRepository : IWalletRepository
@@ -40,9 +42,19 @@ namespace EShoppingZone.Wallet.Infrastructure.Repositories
 
         public async Task<WalletEntity> UpdateAsync(WalletEntity wallet)
         {
-            _context.Entry(wallet).State = EntityState.Modified;
+            _context.Wallets.Update(wallet);
             await _context.SaveChangesAsync();
             return wallet;
+        }
+
+        public Microsoft.EntityFrameworkCore.Storage.IExecutionStrategy CreateExecutionStrategy()
+        {
+            return _context.Database.CreateExecutionStrategy();
+        }
+
+        public async Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync()
+        {
+            return await _context.Database.BeginTransactionAsync();
         }
 
         public async Task<StatementEntity> AddStatementAsync(StatementEntity statement)

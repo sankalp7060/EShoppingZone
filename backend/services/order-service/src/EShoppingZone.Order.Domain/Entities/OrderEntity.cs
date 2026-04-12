@@ -7,6 +7,8 @@ namespace EShoppingZone.Order.Domain.Entities
         public int OrderId { get; set; }
         public DateTime OrderDate { get; set; }
         public int CustomerId { get; set; }
+        public string CustomerName { get; set; } = string.Empty;
+        public int MerchantId { get; set; } // Root MerchantId for easy querying
         public decimal AmountPaid { get; set; }
         public string ModeOfPayment { get; set; } = string.Empty;
         public string OrderStatus { get; set; } = "Placed";
@@ -16,6 +18,7 @@ namespace EShoppingZone.Order.Domain.Entities
         public DateTime? DeliveredDate { get; set; }
         public DateTime? CancelledDate { get; set; }
         public string? CancellationReason { get; set; }
+        public int? DeliveryAgentId { get; set; } // Delivery Boy assigned to the order
 
         // Address snapshot
         public string AddressHouseNumber { get; set; } = string.Empty;
@@ -36,6 +39,7 @@ namespace EShoppingZone.Order.Domain.Entities
     public class OrderItemEntity
     {
         public int ProductId { get; set; }
+        public int MerchantId { get; set; }
         public string ProductName { get; set; } = string.Empty;
         public decimal Price { get; set; }
         public int Quantity { get; set; }

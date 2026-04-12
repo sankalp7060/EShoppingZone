@@ -82,7 +82,6 @@ namespace EShoppingZone.Product.Application.DTOs
         public int MerchantId { get; set; }
         public string MerchantName { get; set; } = string.Empty;
         public Dictionary<int, double> Ratings { get; set; } = new();
-        public Dictionary<int, string> Reviews { get; set; } = new();
         public List<string> Images { get; set; } = new();
         public Dictionary<string, string> Specifications { get; set; } = new();
         public double AverageRating { get; set; }
@@ -112,5 +111,19 @@ namespace EShoppingZone.Product.Application.DTOs
         public string? SortBy { get; set; } // price_asc, price_desc, name_asc, name_desc, newest, rating
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 20;
+    }
+
+    public class RateProductRequest
+    {
+        [Required]
+        [Range(1, 5)]
+        public int Rating { get; set; }
+    }
+
+    public class BuyProductRequest
+    {
+        [Required]
+        [Range(1, 100)]
+        public int Quantity { get; set; } = 1;
     }
 }

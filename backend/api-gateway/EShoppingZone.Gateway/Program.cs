@@ -93,6 +93,14 @@ app.MapHealthChecks(
         ResponseWriter = async (context, report) =>
         {
             context.Response.ContentType = "application/json";
+            
+            // Get addresses from configuration to avoid hardcoded localhost in production
+            var profileUrl = builder.Configuration["ReverseProxy:Clusters:profile-cluster:Destinations:destination1:Address"] ?? "http://localhost:5001/";
+            var productUrl = builder.Configuration["ReverseProxy:Clusters:product-cluster:Destinations:destination1:Address"] ?? "http://localhost:5002/";
+            var cartUrl = builder.Configuration["ReverseProxy:Clusters:cart-cluster:Destinations:destination1:Address"] ?? "http://localhost:5003/";
+            var orderUrl = builder.Configuration["ReverseProxy:Clusters:order-cluster:Destinations:destination1:Address"] ?? "http://localhost:5004/";
+            var walletUrl = builder.Configuration["ReverseProxy:Clusters:wallet-cluster:Destinations:destination1:Address"] ?? "http://localhost:5005/";
+
             var result = System.Text.Json.JsonSerializer.Serialize(
                 new
                 {
@@ -101,11 +109,11 @@ app.MapHealthChecks(
                     timestamp = DateTime.UtcNow,
                     services = new
                     {
-                        profile = "http://localhost:5001/health",
-                        product = "http://localhost:5002/health",
-                        cart = "http://localhost:5003/health",
-                        order = "http://localhost:5004/health",
-                        wallet = "http://localhost:5005/health",
+                        profile = profileUrl + "health",
+                        product = productUrl + "health",
+                        cart = cartUrl + "health",
+                        order = orderUrl + "health",
+                        wallet = walletUrl + "health",
                     },
                 }
             );

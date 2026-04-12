@@ -35,7 +35,6 @@ namespace EShoppingZone.Product.Application.Services
                 Specifications = request.Specifications ?? new Dictionary<string, string>(),
                 Images = request.Images ?? new List<string>(),
                 Ratings = new Dictionary<int, double>(),
-                Reviews = new Dictionary<int, string>(),
                 CreatedAt = DateTime.UtcNow,
                 IsActive = true,
             };
@@ -398,11 +397,10 @@ namespace EShoppingZone.Product.Application.Services
                 MerchantId = product.MerchantId,
                 MerchantName = merchantName,
                 Ratings = product.Ratings,
-                Reviews = product.Reviews,
                 Images = product.Images,
                 Specifications = product.Specifications,
                 AverageRating = averageRating,
-                TotalReviews = product.Reviews.Count,
+                TotalReviews = product.Ratings.Count,
                 CreatedAt = product.CreatedAt,
                 UpdatedAt = product.UpdatedAt,
             };
@@ -410,28 +408,75 @@ namespace EShoppingZone.Product.Application.Services
 
         public async Task<List<string>> GetAllCategoriesAsync()
         {
-            var categories = await _productRepository
+            var baseCategories = new List<string> { "Electronics", "Fashion", "Home Appliances", "Beauty & Health", "Sports & Fitness", "Books & Stationery" };
+            
+            var dbCategories = await _productRepository
                 .GetQueryable()
                 .Where(p => p.IsActive)
                 .Select(p => p.Category)
                 .Distinct()
-                .OrderBy(c => c)
                 .ToListAsync();
 
-            return categories;
+            return baseCategories.Union(dbCategories).OrderBy(c => c).ToList();
         }
 
         public async Task<List<string>> GetAllProductTypesAsync()
         {
-            var types = await _productRepository
+            var baseTypes = new List<string> { "Smartphone", "Laptop", "Audio/Headphones", "Smartwatch", "Camera", "Television", "Gaming Console", "Hardware" };
+
+            var dbTypes = await _productRepository
                 .GetQueryable()
                 .Where(p => p.IsActive)
                 .Select(p => p.ProductType)
                 .Distinct()
-                .OrderBy(t => t)
                 .ToListAsync();
 
-            return types;
+            return baseTypes.Union(dbTypes).OrderBy(t => t).ToList();
+        }
+
+        public async Task<Dictionary<string, int>> GetCategoryDistributionAsync()
+        {
+            return await _productRepository
+                .GetQueryable()
+                .Where(p => p.IsActive)
+                .GroupBy(p => p.Category)
+                .Select(g => new { Category = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Category, x => x.Count);
+        }
+
+        public async Task<ProductResponse> RateProductAsync(int productId, int userId, int rating)
+        {
+            var product = await _productRepository.GetByIdAsync(productId);
+            if (product == null)
+                throw new NotFoundException("Product not found");
+
+            product.Ratings[userId] = rating;
+            product.UpdatedAt = DateTime.UtcNow;
+
+            await _productRepository.UpdateAsync(product);
+            
+            _logger.LogInformation("Product {ProductId} rated {Rating} by User {UserId}", productId, rating, userId);
+            
+            return await MapToProductResponse(product);
+        }
+
+        public async Task<ProductResponse> BuyProductAsync(int productId, int quantity)
+        {
+            var product = await _productRepository.GetByIdAsync(productId);
+            if (product == null)
+                throw new NotFoundException("Product not found");
+
+            if (product.StockQuantity < quantity)
+                throw new InvalidOperationException("Not enough stock available");
+
+            product.StockQuantity -= quantity;
+            product.UpdatedAt = DateTime.UtcNow;
+
+            await _productRepository.UpdateAsync(product);
+            
+            _logger.LogInformation("Product {ProductId} stock decreased by {Quantity}", productId, quantity);
+            
+            return await MapToProductResponse(product);
         }
     }
 }

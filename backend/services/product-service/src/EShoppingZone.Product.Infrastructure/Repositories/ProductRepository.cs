@@ -48,9 +48,8 @@ namespace EShoppingZone.Product.Infrastructure.Repositories
             var product = await GetByIdAsync(id);
             if (product != null)
             {
-                product.IsActive = false;
-                product.UpdatedAt = DateTime.UtcNow;
-                await UpdateAsync(product);
+                _context.Products.Remove(product);
+                await _context.SaveChangesAsync();
             }
         }
 

@@ -33,6 +33,8 @@ namespace EShoppingZone.Profile.Application.DTOs
 
         [Required]
         public string Password { get; set; } = string.Empty;
+
+        public string? Role { get; set; }
     }
 
     public class OAuthLoginRequest
@@ -87,6 +89,7 @@ namespace EShoppingZone.Profile.Application.DTOs
     {
         [Required]
         public string IdToken { get; set; } = string.Empty;
+        public string? Role { get; set; }
     }
 
     public class RefreshTokenRequest

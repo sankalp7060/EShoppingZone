@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 using EShoppingZone.Profile.Application.Common.Exceptions;
 using EShoppingZone.Profile.Application.DTOs;
 using EShoppingZone.Profile.Application.Services;
@@ -157,7 +158,8 @@ namespace EShoppingZone.Profile.API.Controllers
         {
             try
             {
-                var result = await _adminService.SuspendUserAsync(userId, request?.Reason);
+                var adminId = GetCurrentAdminId();
+                var result = await _adminService.SuspendUserAsync(userId, adminId, request?.Reason);
                 return Ok(new { success = true, message = "User suspended successfully" });
             }
             catch (NotFoundException ex)
@@ -167,6 +169,10 @@ namespace EShoppingZone.Profile.API.Controllers
             catch (InvalidOperationException ex)
             {
                 return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -205,7 +211,8 @@ namespace EShoppingZone.Profile.API.Controllers
         {
             try
             {
-                var result = await _adminService.DeleteUserAsync(userId);
+                var adminId = GetCurrentAdminId();
+                var result = await _adminService.DeleteUserAsync(userId, adminId);
                 return Ok(new { success = true, message = "User deleted successfully" });
             }
             catch (NotFoundException ex)
@@ -215,6 +222,10 @@ namespace EShoppingZone.Profile.API.Controllers
             catch (InvalidOperationException ex)
             {
                 return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -280,6 +291,21 @@ namespace EShoppingZone.Profile.API.Controllers
                 _logger.LogError(ex, "Error getting revenue analytics");
                 return StatusCode(500, new { success = false, message = "Internal server error" });
             }
+        }
+        // ==================== PRIVATE HELPERS ====================
+
+        /// <summary>
+        /// Extracts the numeric user ID of the currently authenticated admin from the JWT 'sub' claim.
+        /// </summary>
+        private int GetCurrentAdminId()
+        {
+            var sub = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                      ?? User.FindFirstValue("sub");
+
+            if (string.IsNullOrEmpty(sub) || !int.TryParse(sub, out var adminId))
+                throw new UnauthorizedAccessException("Unable to determine caller identity from token.");
+
+            return adminId;
         }
     }
 }

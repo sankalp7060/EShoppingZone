@@ -25,6 +25,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         {
             npgsqlOptions.EnableRetryOnFailure(3);
             npgsqlOptions.CommandTimeout(30);
+            npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "public");
         }
     );
     options.EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
@@ -94,18 +95,19 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 
-// Ensure database is created and migrations are applied
+// Apply migrations instead of EnsureCreatedAsync
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     try
     {
-        await dbContext.Database.EnsureCreatedAsync();
-        Console.WriteLine("Database connection successful!");
+        // Use MigrateAsync() instead of EnsureCreatedAsync()
+        await dbContext.Database.MigrateAsync();
+        Console.WriteLine("Database migration applied successfully!");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Database connection failed: {ex.Message}");
+        Console.WriteLine($"Database migration failed: {ex.Message}");
         throw;
     }
 }

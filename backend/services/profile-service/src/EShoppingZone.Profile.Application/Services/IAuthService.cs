@@ -14,5 +14,7 @@ namespace EShoppingZone.Profile.Application.Services
         Task<bool> ValidateTokenAsync(string token);
         Task<UserDto?> GetUserByIdAsync(int userId);
         Task LogoutAsync(int userId, string? refreshToken = null);
+        Task<UserDto?> GetUserByEmailAsync(string email);
+        Task<bool> ResetPasswordAsync(string email, string newPassword);
     }
 }

@@ -33,11 +33,14 @@ namespace EShoppingZone.Product.Application.Services
             int pageSize = 20
         );
         Task<bool> UpdateStockAsync(int productId, int quantityChange);
+        Task<ProductResponse> RateProductAsync(int productId, int userId, int rating);
+        Task<ProductResponse> BuyProductAsync(int productId, int quantity);
 
         // Admin operations
         Task<bool> AdminDeleteProductAsync(int productId);
         Task<ProductListResponse> AdminGetAllProductsAsync(ProductFilterRequest filter);
         Task<List<string>> GetAllCategoriesAsync();
         Task<List<string>> GetAllProductTypesAsync();
+        Task<Dictionary<string, int>> GetCategoryDistributionAsync();
     }
 }

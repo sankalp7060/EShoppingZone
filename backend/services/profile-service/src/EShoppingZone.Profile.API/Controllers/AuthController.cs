@@ -3,6 +3,7 @@ using EShoppingZone.Profile.Application.DTOs;
 using EShoppingZone.Profile.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using EShoppingZone.Profile.Application.Common.Exceptions;
 
 namespace EShoppingZone.Profile.API.Controllers
 {
@@ -75,6 +76,10 @@ namespace EShoppingZone.Profile.API.Controllers
             catch (UnauthorizedAccessException ex)
             {
                 return Unauthorized(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -183,5 +188,54 @@ namespace EShoppingZone.Profile.API.Controllers
             var isValid = await _authService.ValidateTokenAsync(token);
             return Ok(new { success = true, isValid = isValid });
         }
+        [HttpPost("check-email")]
+        public async Task<IActionResult> CheckEmail([FromBody] CheckEmailRequest request)
+        {
+            try
+            {
+                var user = await _authService.GetUserByEmailAsync(request.Email);
+                if (user == null)
+                    return Ok(new { success = false, message = "Email not found" });
+                
+                return Ok(new { success = true, message = "Email exists" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking email");
+                return StatusCode(500, new { success = false, message = "Internal server error" });
+            }
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            try
+            {
+                var result = await _authService.ResetPasswordAsync(request.Email, request.NewPassword);
+                if (result)
+                    return Ok(new { success = true, message = "Password reset successfully" });
+                
+                return BadRequest(new { success = false, message = "Failed to reset password" });
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resetting password");
+                return StatusCode(500, new { success = false, message = "Internal server error" });
+            }
+        }
+    }
+    public class CheckEmailRequest
+    {
+        public string Email { get; set; } = string.Empty;
+    }
+
+    public class ResetPasswordRequest
+    {
+        public string Email { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
     }
 }

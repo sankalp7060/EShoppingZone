@@ -13,6 +13,8 @@ namespace EShoppingZone.Order.Application.Services
             string token
         );
         Task<WalletBalanceResponse> GetWalletBalanceAsync(int userId, string token);
+        Task<WalletPaymentResult> RefundWalletPaymentAsync(int userId, int orderId, decimal amount, string token);
+        Task<WalletPaymentResult> CreditMerchantAsync(int merchantId, int orderId, decimal amount, string token);
     }
 
     public class WalletPaymentResult
@@ -118,6 +120,97 @@ namespace EShoppingZone.Order.Application.Services
             {
                 _logger.LogError(ex, "Error getting wallet balance");
                 return new WalletBalanceResponse { CurrentBalance = 0, UserId = userId };
+            }
+        }
+        public async Task<WalletPaymentResult> RefundWalletPaymentAsync(
+            int userId,
+            int orderId,
+            decimal amount,
+            string token
+        )
+        {
+            try
+            {
+                _httpClient.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+                var request = new
+                {
+                    orderId = orderId,
+                    amount = amount,
+                    remarks = $"Refund for cancelled order #{orderId}",
+                };
+
+                var response = await _httpClient.PostAsJsonAsync(
+                    $"http://localhost:5005/api/wallet/refund",
+                    request
+                );
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<
+                        WalletApiResponse<WalletPaymentResult>
+                    >();
+                    return result?.Data
+                        ?? new WalletPaymentResult { Success = true, Message = "Refund processed" };
+                }
+
+                var error = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("Wallet refund failed: {Error}", error);
+                return new WalletPaymentResult { Success = false, Message = "Refund failed" };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calling wallet service for refund");
+                return new WalletPaymentResult { Success = false, Message = "Refund service unavailable" };
+            }
+        }
+
+        public async Task<WalletPaymentResult> CreditMerchantAsync(
+            int merchantId,
+            int orderId,
+            decimal amount,
+            string token
+        )
+        {
+            try
+            {
+                _httpClient.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+                var request = new
+                {
+                    orderId = orderId,
+                    amount = amount,
+                    remarks = $"Earnings from order #{orderId}",
+                };
+
+                var response = await _httpClient.PostAsJsonAsync(
+                    $"http://localhost:5005/api/wallet/credit/{merchantId}",
+                    request
+                );
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<
+                        WalletApiResponse<WalletPaymentResult>
+                    >();
+                    return result?.Data
+                        ?? new WalletPaymentResult { Success = true, Message = "Credit processed" };
+                }
+
+                var error = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("Wallet credit failed for merchant {MerchantId}: {Error}", merchantId, error);
+                return new WalletPaymentResult { Success = false, Message = "Credit failed" };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calling wallet service for merchant credit");
+                return new WalletPaymentResult
+                {
+                    Success = false,
+                    Message = "Credit service unavailable",
+                };
             }
         }
     }

@@ -27,9 +27,10 @@ namespace EShoppingZone.Profile.Infrastructure.Data
                 entity.Property(e => e.FullName).IsRequired().HasMaxLength(200);
                 entity.Property(e => e.Email).IsRequired().HasMaxLength(200);
                 entity.Property(e => e.PasswordHash).HasMaxLength(500);
-                entity.Property(e => e.ProfileImage).HasMaxLength(500);
-                entity.Property(e => e.About).HasMaxLength(1000);
-                entity.Property(e => e.Gender).HasMaxLength(10);
+                entity.Property(e => e.ProfileImage).HasMaxLength(2000); // Increased for Google URLs
+                entity.Property(e => e.About).HasMaxLength(2000);
+                entity.Property(e => e.Gender).HasMaxLength(20);
+                entity.Property(e => e.OAuthId).HasMaxLength(200);
 
                 // Seed admin user
                 entity.HasData(

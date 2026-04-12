@@ -7,7 +7,7 @@ namespace EShoppingZone.Profile.Application.DTOs
         [StringLength(200, MinimumLength = 2)]
         public string? FullName { get; set; }
 
-        [Phone]
+        [Range(1000000000, 9999999999, ErrorMessage = "Mobile number must be 10 digits")]
         public long? MobileNumber { get; set; }
 
         [StringLength(1000)]
@@ -15,7 +15,7 @@ namespace EShoppingZone.Profile.Application.DTOs
 
         public DateTime? DateOfBirth { get; set; }
 
-        [StringLength(10)]
+        [StringLength(20)]
         public string? Gender { get; set; }
 
         public string? ProfileImage { get; set; }

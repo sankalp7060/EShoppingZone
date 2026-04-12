@@ -59,10 +59,11 @@ namespace EShoppingZone.Product.API.Controllers
             }
         }
 
+
         /// <summary>
         /// Get product by ID
         /// </summary>
-        [HttpGet("{id}")]
+        [HttpGet("{id:int}")]
         public async Task<IActionResult> GetProductById(int id)
         {
             try
@@ -174,6 +175,24 @@ namespace EShoppingZone.Product.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting all product types");
+                return StatusCode(500, new { success = false, message = "Internal server error" });
+            }
+        }
+
+        /// <summary>
+        /// Get product distribution by category
+        /// </summary>
+        [HttpGet("stats/category-distribution")]
+        public async Task<IActionResult> GetCategoryDistribution()
+        {
+            try
+            {
+                var stats = await _productService.GetCategoryDistributionAsync();
+                return Ok(new { success = true, data = stats });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting category distribution");
                 return StatusCode(500, new { success = false, message = "Internal server error" });
             }
         }
@@ -515,6 +534,59 @@ namespace EShoppingZone.Product.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error searching products with name: {Name}", name);
+                return StatusCode(500, new { success = false, message = "Internal server error" });
+            }
+        }
+        /// <summary>
+        /// Rate a product (Customers only)
+        /// </summary>
+        [HttpPost("{id}/rate")]
+        [Authorize(Roles = "Customer")]
+        public async Task<IActionResult> RateProduct(int id, [FromBody] RateProductRequest request)
+        {
+            try
+            {
+                var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (!int.TryParse(userIdStr, out int userId))
+                    return Unauthorized(new { success = false, message = "Invalid user to rate" });
+
+                var result = await _productService.RateProductAsync(id, userId, request.Rating);
+                return Ok(new { success = true, data = result });
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error rating product {ProductId}", id);
+                return StatusCode(500, new { success = false, message = "Internal server error" });
+            }
+        }
+
+        /// <summary>
+        /// Instantly buy a product and apply stock modification
+        /// </summary>
+        [HttpPost("{id}/buy")]
+        [Authorize(Roles = "Customer")]
+        public async Task<IActionResult> BuyProduct(int id, [FromBody] BuyProductRequest request)
+        {
+            try
+            {
+                var result = await _productService.BuyProductAsync(id, request.Quantity);
+                return Ok(new { success = true, data = result });
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error buying product {ProductId}", id);
                 return StatusCode(500, new { success = false, message = "Internal server error" });
             }
         }

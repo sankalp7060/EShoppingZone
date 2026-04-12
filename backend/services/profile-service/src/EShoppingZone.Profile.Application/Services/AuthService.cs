@@ -1,7 +1,9 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using BCrypt.Net;
 using EShoppingZone.Profile.Application.Common.Exceptions;
 using EShoppingZone.Profile.Application.DTOs;
@@ -96,6 +98,17 @@ namespace EShoppingZone.Profile.Application.Services
             if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
                 throw new UnauthorizedAccessException("Invalid email or password");
 
+            // Role verification
+            if (!string.IsNullOrEmpty(request.Role))
+            {
+                if (user.Role.ToString().ToLower() != request.Role.ToLower())
+                {
+                    _logger.LogWarning("Role mismatch login attempt for {Email}: Expected {Selected}, actual {Actual}", 
+                        user.Email, request.Role, user.Role);
+                    throw new UnauthorizedAccessException($"This account is registered as a {user.Role}. Please log in with the correct role.");
+                }
+            }
+
             // Update last login
             user.LastLoginAt = DateTime.UtcNow;
             await _userRepository.UpdateAsync(user);
@@ -109,61 +122,160 @@ namespace EShoppingZone.Profile.Application.Services
         {
             try
             {
-                // Verify Google token
-                var settings = new GoogleJsonWebSignature.ValidationSettings
+                string email;
+                string name;
+                string? pictureUrl = null;
+                string googleId = null;
+                bool emailVerified = false;
+
+                // Parse the selected role from request
+                UserRole selectedRole = UserRole.Customer;
+                if (!string.IsNullOrEmpty(request.Role))
                 {
-                    Audience = new[] { _configuration["Google:ClientId"] },
-                };
+                    selectedRole = request.Role.ToLower() switch
+                    {
+                        "merchant" => UserRole.Merchant,
+                        "deliveryagent" => UserRole.DeliveryAgent,
+                        "customer" => UserRole.Customer,
+                        _ => UserRole.Customer
+                    };
+                }
 
-                var payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, settings);
+                _logger.LogInformation("Google Login Attempt with Role: {Role}", selectedRole);
 
-                // Find or create user
-                var user = await _userRepository.GetByOAuthAsync("Google", payload.Email);
+                // Check if it's an ID Token (JWT format containing dots) or an Access Token
+                if (request.IdToken.Contains('.') && request.IdToken.Split('.').Length == 3)
+                {
+                    _logger.LogInformation("Verifying Google ID Token (JWT)");
+                    // Verify Google ID token
+                    var settings = new GoogleJsonWebSignature.ValidationSettings
+                    {
+                        Audience = new[] { _configuration["Google:ClientId"] },
+                    };
 
+                    var payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, settings);
+                    email = payload.Email;
+                    name = payload.Name;
+                    pictureUrl = payload.Picture;
+                    googleId = payload.Subject;
+                    emailVerified = payload.EmailVerified;
+                }
+                else
+                {
+                    _logger.LogInformation("Verifying Google Access Token via UserInfo API");
+                    // Verify Google Access Token via Google's userinfo API
+                    using var httpClient = new HttpClient();
+                    httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+                        "Bearer",
+                        request.IdToken
+                    );
+                    var response = await httpClient.GetAsync(
+                        "https://www.googleapis.com/oauth2/v3/userinfo"
+                    );
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        _logger.LogWarning("Invalid Google Access Token: {Status}", response.StatusCode);
+                        throw new UnauthorizedAccessException("Invalid Google access token");
+                    }
+
+                    var content = await response.Content.ReadAsStringAsync();
+                    var userInfo = JsonSerializer.Deserialize<JsonElement>(content);
+
+                    email = userInfo.GetProperty("email").GetString()!;
+                    name = userInfo.GetProperty("name").GetString()!;
+                    googleId = userInfo.GetProperty("sub").GetString()!;
+                    if (userInfo.TryGetProperty("picture", out var pic))
+                        pictureUrl = pic.GetString();
+                    if (userInfo.TryGetProperty("email_verified", out var ev))
+                        emailVerified = ev.GetBoolean();
+                }
+
+                _logger.LogInformation(
+                    "Google verified: Email={Email}, GoogleId={GoogleId}, SelectedRole={Role}",
+                    email,
+                    googleId,
+                    selectedRole
+                );
+
+                // 1. Check if user already exists
+                var existingUserByOAuth = await _userRepository.GetByOAuthAsync("Google", googleId);
+                var existingUserByEmail = await _userRepository.GetByEmailAsync(email);
+                var user = existingUserByOAuth ?? existingUserByEmail;
+
+                // 2. Logic to handle user creation vs login
                 if (user == null)
                 {
-                    // Try to find by email
-                    user = await _userRepository.GetByEmailAsync(payload.Email);
-
-                    if (user == null)
+                    // REGISTRATION PATH
+                    if (string.IsNullOrEmpty(request.Role))
                     {
-                        // Create new user
-                        user = new UserEntity
-                        {
-                            FullName = payload.Name,
-                            Email = payload.Email,
-                            ProfileImage = payload.Picture,
-                            OAuthProvider = "Google",
-                            OAuthId = payload.Email,
-                            Role = UserRole.Customer,
-                            IsEmailVerified = payload.EmailVerified,
-                            IsActive = true,
-                            CreatedAt = DateTime.UtcNow,
-                        };
-
-                        await _userRepository.CreateAsync(user);
-                        _logger.LogInformation("New Google user registered: {Email}", user.Email);
+                        _logger.LogWarning("Login attempt for non-existent user: {Email}", email);
+                        throw new UnauthorizedAccessException("Account not found. Please register first.");
                     }
-                    else
+
+                    // Create new user with selected role
+                    var newUser = new UserEntity
                     {
-                        // Link Google to existing account
-                        user.OAuthProvider = "Google";
-                        user.OAuthId = payload.Email;
-                        user.IsEmailVerified = payload.EmailVerified;
-                        user.ProfileImage ??= payload.Picture;
-                        await _userRepository.UpdateAsync(user);
-                        _logger.LogInformation(
-                            "Google linked to existing account: {Email}",
-                            user.Email
-                        );
+                        FullName = name,
+                        Email = email.ToLower(),
+                        ProfileImage = pictureUrl,
+                        OAuthProvider = "Google",
+                        OAuthId = googleId,
+                        Role = selectedRole,
+                        IsEmailVerified = emailVerified,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        MobileNumber = 0,
+                        Gender = "Other",
+                    };
+
+                    try
+                    {
+                        var createdUser = await _userRepository.CreateAsync(newUser);
+                        _logger.LogInformation("New Google user registered successfully: {UserId}", createdUser.Id);
+                        return await GenerateAuthResponse(createdUser);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to save new Google user: {Email}", email);
+                        throw new Exception("Failed to create Google user account.");
                     }
                 }
                 else
                 {
-                    // Update existing OAuth user info
-                    user.FullName = payload.Name;
-                    user.ProfileImage = payload.Picture;
-                    user.IsEmailVerified = payload.EmailVerified;
+                    // LOGIN PATH (for existing users)
+                    
+                    // If role was explicitly provided for an existing user, verify it
+                    if (!string.IsNullOrEmpty(request.Role))
+                    {
+                        if (user.Role.ToString().ToLower() != request.Role.ToLower())
+                        {
+                            _logger.LogWarning("Google Role mismatch for {Email}: Expected {Selected}, actual {Actual}", 
+                                user.Email, request.Role, user.Role);
+                            throw new UnauthorizedAccessException($"This account is already registered as a {user.Role}. Please select the correct role to log in.");
+                        }
+                    }
+
+                    // If found by email but not linked to Google
+                    if (string.IsNullOrEmpty(user.OAuthProvider))
+                    {
+                        user.OAuthProvider = "Google";
+                        user.OAuthId = googleId;
+                        user.IsEmailVerified = emailVerified;
+                        user.ProfileImage ??= pictureUrl;
+                        await _userRepository.UpdateAsync(user);
+                        _logger.LogInformation("Google linked to existing email account: {Email}", user.Email);
+                    }
+                    else
+                    {
+                        // Existing OAuth user - Update profile info
+                        user.FullName = name;
+                        user.ProfileImage = pictureUrl;
+                        user.IsEmailVerified = emailVerified;
+                        await _userRepository.UpdateAsync(user);
+                    }
+
+                    return await GenerateAuthResponse(user);
                 }
 
                 user.LastLoginAt = DateTime.UtcNow;
@@ -173,8 +285,17 @@ namespace EShoppingZone.Profile.Application.Services
             }
             catch (InvalidJwtException ex)
             {
-                _logger.LogError(ex, "Invalid Google token");
-                throw new UnauthorizedAccessException("Invalid Google token");
+                _logger.LogError(ex, "Invalid Google token validation failed");
+                throw new UnauthorizedAccessException("Invalid Google token signature");
+            }
+            catch (InvalidOperationException ex)
+            {
+                throw; // Re-throw planned registration errors
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected Google login/register error");
+                throw;
             }
         }
 
@@ -410,6 +531,35 @@ namespace EShoppingZone.Profile.Application.Services
                 ProfileImage = user.ProfileImage,
                 IsEmailVerified = user.IsEmailVerified,
             };
+        }
+        public async Task<UserDto?> GetUserByEmailAsync(string email)
+        {
+            var user = await _userRepository.GetByEmailAsync(email);
+
+            if (user == null)
+                return null;
+
+            return MapToUserDto(user);
+        }
+
+        public async Task<bool> ResetPasswordAsync(string email, string newPassword)
+        {
+            var user = await _userRepository.GetByEmailAsync(email);
+
+            if (user == null)
+                throw new NotFoundException("User not found");
+
+            // Update password
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            // Save changes
+            await _userRepository.UpdateAsync(user);
+
+            // Revoke all refresh tokens after password reset
+            await RevokeAllUserTokensAsync(user.Id);
+
+            return true;
         }
     }
 }

@@ -15,6 +15,7 @@ builder.Services.AddSwaggerGen();
 
 // Configure PostgreSQL - Single Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+Console.WriteLine("CONNECTION STRING: " + connectionString);
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseNpgsql(
@@ -32,6 +33,7 @@ builder.Services.AddScoped<IWalletRepository, WalletRepository>();
 
 // Register services
 builder.Services.AddScoped<IWalletService, WalletService>();
+builder.Services.AddScoped<IRazorpayService, RazorpayService>();
 
 // Configure JWT Authentication
 builder

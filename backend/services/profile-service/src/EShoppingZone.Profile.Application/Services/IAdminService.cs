@@ -11,9 +11,9 @@ namespace EShoppingZone.Profile.Application.Services
         Task<UserListResponse> GetAllUsersAsync(UserFilterRequest filter);
         Task<UserDto?> GetUserByIdAsync(int userId);
         Task<bool> UpdateUserAsync(int userId, AdminUpdateUserRequest request);
-        Task<bool> SuspendUserAsync(int userId, string? reason = null);
+        Task<bool> SuspendUserAsync(int userId, int requestingAdminId, string? reason = null);
         Task<bool> ReactivateUserAsync(int userId);
-        Task<bool> DeleteUserAsync(int userId);
+        Task<bool> DeleteUserAsync(int userId, int requestingAdminId);
 
         // Dashboard Analytics
         Task<DashboardAnalyticsResponse> GetDashboardAnalyticsAsync();

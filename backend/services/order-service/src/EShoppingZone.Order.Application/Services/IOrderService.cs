@@ -16,6 +16,7 @@ namespace EShoppingZone.Order.Application.Services
             int orderId,
             string status,
             string userRole,
+            int userId,
             string? remarks = null
         );
         Task<List<OrderResponse>> GetAllOrdersAsync(string userRole);
@@ -25,6 +26,10 @@ namespace EShoppingZone.Order.Application.Services
             OrderFilterRequest filter,
             string userRole
         );
-        Task<bool> CancelOrderAsync(int orderId, int userId, string? reason = null);
+        Task<bool> CancelOrderAsync(int orderId, int userId, string token, string? reason = null);
+        Task<OrderListResponse> GetFilteredOrdersByMerchantAsync(
+            int merchantId,
+            OrderFilterRequest filter
+        );
     }
 }

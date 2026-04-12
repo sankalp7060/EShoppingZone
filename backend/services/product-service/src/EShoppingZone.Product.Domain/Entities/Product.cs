@@ -13,7 +13,6 @@ namespace EShoppingZone.Product.Domain.Entities
 
         // JSON stored fields (PostgreSQL JSONB)
         public Dictionary<int, double> Ratings { get; set; } = new();
-        public Dictionary<int, string> Reviews { get; set; } = new();
         public List<string> Images { get; set; } = new();
         public Dictionary<string, string> Specifications { get; set; } = new();
 

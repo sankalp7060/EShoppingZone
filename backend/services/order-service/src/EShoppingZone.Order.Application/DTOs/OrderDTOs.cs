@@ -16,10 +16,12 @@ namespace EShoppingZone.Order.Application.DTOs
         public int OrderId { get; set; }
         public DateTime OrderDate { get; set; }
         public int CustomerId { get; set; }
+        public string CustomerName { get; set; } = string.Empty;
         public decimal AmountPaid { get; set; }
         public string ModeOfPayment { get; set; } = string.Empty;
         public string OrderStatus { get; set; } = string.Empty;
         public int Quantity { get; set; }
+        public int? DeliveryAgentId { get; set; }
         public AddressSnapshot Address { get; set; } = null!;
         public List<OrderItemResponse> Items { get; set; } = new();
     }
@@ -38,6 +40,7 @@ namespace EShoppingZone.Order.Application.DTOs
     public class OrderItemResponse
     {
         public int ProductId { get; set; }
+        public int MerchantId { get; set; }
         public string ProductName { get; set; } = string.Empty;
         public decimal Price { get; set; }
         public int Quantity { get; set; }
@@ -56,6 +59,7 @@ namespace EShoppingZone.Order.Application.DTOs
     {
         public int Id { get; set; }
         public int ProductId { get; set; }
+        public int MerchantId { get; set; }
         public string ProductName { get; set; } = string.Empty;
         public decimal Price { get; set; }
         public int Quantity { get; set; }
@@ -127,6 +131,7 @@ namespace EShoppingZone.Order.Application.DTOs
         public string CurrentStatus { get; set; } = string.Empty;
         public DateTime OrderDate { get; set; }
         public DateTime? EstimatedDeliveryDate { get; set; }
+        public int? DeliveryAgentId { get; set; }
         public List<OrderStatusHistoryResponse> StatusHistory { get; set; } = new();
         public List<string> AvailableActions { get; set; } = new();
     }

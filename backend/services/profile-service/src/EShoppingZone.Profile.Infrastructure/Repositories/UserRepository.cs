@@ -28,21 +28,22 @@ namespace EShoppingZone.Profile.Infrastructure.Repositories
         }
 
         public async Task<UserEntity?> GetByIdAsync(int id) =>
-            await _context.Users.Include(u => u.Addresses).FirstOrDefaultAsync(u => u.Id == id);
+            await _context.Users
+                .Include(u => u.Addresses)
+                .FirstOrDefaultAsync(u => u.Id == id);
 
         public async Task<UserEntity?> GetByEmailAsync(string email) =>
-            await _context
-                .Users.Include(u => u.Addresses)
+            await _context.Users
+                .Include(u => u.Addresses)
                 .FirstOrDefaultAsync(u => u.Email == email.ToLower());
 
         public async Task<UserEntity?> GetByOAuthAsync(string provider, string oauthId) =>
-            await _context.Users.FirstOrDefaultAsync(u =>
-                u.OAuthProvider == provider && u.OAuthId == oauthId
-            );
+            await _context.Users
+                .FirstOrDefaultAsync(u => u.OAuthProvider == provider && u.OAuthId == oauthId);
 
         public async Task<IEnumerable<UserEntity>> GetAllAsync() =>
-            await _context
-                .Users.Include(u => u.Addresses)
+            await _context.Users
+                .Include(u => u.Addresses)
                 .OrderByDescending(u => u.CreatedAt)
                 .ToListAsync();
 
@@ -76,8 +77,8 @@ namespace EShoppingZone.Profile.Infrastructure.Repositories
             await _context.Users.AnyAsync(u => u.MobileNumber == mobile);
 
         public async Task<UserEntity?> GetByMobileNumberAsync(long mobileNumber) =>
-            await _context
-                .Users.Include(u => u.Addresses)
+            await _context.Users
+                .Include(u => u.Addresses)
                 .FirstOrDefaultAsync(u => u.MobileNumber == mobileNumber);
     }
 }

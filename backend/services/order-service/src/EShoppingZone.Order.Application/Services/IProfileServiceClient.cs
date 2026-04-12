@@ -8,6 +8,7 @@ namespace EShoppingZone.Order.Application.Services
     public interface IProfileServiceClient
     {
         Task<AddressDto?> GetAddressByIdAsync(int addressId, int userId, string token);
+        Task<ProfileResponseDto?> GetProfileAsync(string token);
     }
 
     public class ProfileServiceClient : IProfileServiceClient
@@ -37,47 +38,56 @@ namespace EShoppingZone.Order.Application.Services
                 _httpClient.DefaultRequestHeaders.Authorization =
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-                // Log the request for debugging
-                _logger.LogInformation(
-                    "Calling Profile Service: {Url}/api/profile/addresses/{AddressId}",
-                    profileServiceUrl,
-                    addressId
-                );
-
                 var response = await _httpClient.GetAsync(
                     $"{profileServiceUrl}/api/profile/addresses/{addressId}"
                 );
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var result = await response.Content.ReadFromJsonAsync<
-                        ApiResponse<AddressDto>
-                    >();
+                    var result = await response.Content.ReadFromJsonAsync<ApiResponse<AddressDto>>();
                     return result?.Data;
                 }
-                else
-                {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogWarning(
-                        "Failed to get address {AddressId}. Status: {StatusCode}, Error: {Error}",
-                        addressId,
-                        response.StatusCode,
-                        errorContent
-                    );
-                }
-
                 return null;
             }
             catch (Exception ex)
             {
-                _logger.LogError(
-                    ex,
-                    "Error calling profile service for address {AddressId}",
-                    addressId
-                );
+                _logger.LogError(ex, "Error calling profile service for address {AddressId}", addressId);
                 return null;
             }
         }
+
+        public async Task<ProfileResponseDto?> GetProfileAsync(string token)
+        {
+            try
+            {
+                var profileServiceUrl =
+                    _configuration["ServiceUrls:ProfileService"] ?? "http://localhost:5001";
+
+                _httpClient.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+                var response = await _httpClient.GetAsync($"{profileServiceUrl}/api/profile/me");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<ApiResponse<ProfileResponseDto>>();
+                    return result?.Data;
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calling profile service for profile");
+                return null;
+            }
+        }
+    }
+
+    public class ProfileResponseDto
+    {
+        public int Id { get; set; }
+        public string FullName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
     }
 
     public class ApiResponse<T>
