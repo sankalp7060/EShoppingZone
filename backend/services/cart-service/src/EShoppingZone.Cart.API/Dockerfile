@@ -8,19 +8,12 @@ ENV ASPNETCORE_URLS=http://+:8080
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy all projects for this service
-COPY ["shared/EShoppingZone.Common/EShoppingZone.Common.csproj", "shared/EShoppingZone.Common/"]
-COPY ["services/cart-service/src/EShoppingZone.Cart.API/EShoppingZone.Cart.API.csproj", "services/cart-service/src/EShoppingZone.Cart.API/"]
-COPY ["services/cart-service/src/EShoppingZone.Cart.Application/EShoppingZone.Cart.Application.csproj", "services/cart-service/src/EShoppingZone.Cart.Application/"]
-COPY ["services/cart-service/src/EShoppingZone.Cart.Domain/EShoppingZone.Cart.Domain.csproj", "services/cart-service/src/EShoppingZone.Cart.Domain/"]
-COPY ["services/cart-service/src/EShoppingZone.Cart.Infrastructure/EShoppingZone.Cart.Infrastructure.csproj", "services/cart-service/src/EShoppingZone.Cart.Infrastructure/"]
-
-# Restore
-RUN dotnet restore "services/cart-service/src/EShoppingZone.Cart.API/EShoppingZone.Cart.API.csproj"
-
-# Copy everything
+# Copy EVERYTHING to maintain relative paths
 COPY . .
-WORKDIR "/src/services/cart-service/src/EShoppingZone.Cart.API"
+
+# Restore and Build
+RUN dotnet restore "backend/services/cart-service/src/EShoppingZone.Cart.API/EShoppingZone.Cart.API.csproj"
+WORKDIR "/src/backend/services/cart-service/src/EShoppingZone.Cart.API"
 RUN dotnet build "EShoppingZone.Cart.API.csproj" -c Release -o /app/build
 
 FROM build AS publish

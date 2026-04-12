@@ -8,19 +8,12 @@ ENV ASPNETCORE_URLS=http://+:8080
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy all projects for this service
-COPY ["shared/EShoppingZone.Common/EShoppingZone.Common.csproj", "shared/EShoppingZone.Common/"]
-COPY ["services/product-service/src/EShoppingZone.Product.API/EShoppingZone.Product.API.csproj", "services/product-service/src/EShoppingZone.Product.API/"]
-COPY ["services/product-service/src/EShoppingZone.Product.Application/EShoppingZone.Product.Application.csproj", "services/product-service/src/EShoppingZone.Product.Application/"]
-COPY ["services/product-service/src/EShoppingZone.Product.Domain/EShoppingZone.Product.Domain.csproj", "services/product-service/src/EShoppingZone.Product.Domain/"]
-COPY ["services/product-service/src/EShoppingZone.Product.Infrastructure/EShoppingZone.Product.Infrastructure.csproj", "services/product-service/src/EShoppingZone.Product.Infrastructure/"]
-
-# Restore
-RUN dotnet restore "services/product-service/src/EShoppingZone.Product.API/EShoppingZone.Product.API.csproj"
-
-# Copy everything
+# Copy EVERYTHING to maintain relative paths
 COPY . .
-WORKDIR "/src/services/product-service/src/EShoppingZone.Product.API"
+
+# Restore and Build
+RUN dotnet restore "backend/services/product-service/src/EShoppingZone.Product.API/EShoppingZone.Product.API.csproj"
+WORKDIR "/src/backend/services/product-service/src/EShoppingZone.Product.API"
 RUN dotnet build "EShoppingZone.Product.API.csproj" -c Release -o /app/build
 
 FROM build AS publish

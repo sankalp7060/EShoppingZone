@@ -26,6 +26,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
             npgsqlOptions.EnableRetryOnFailure(3);
             npgsqlOptions.CommandTimeout(30);
             npgsqlOptions.MigrationsHistoryTable("__ProductHistory_v2");
+            npgsqlOptions.MigrationsAssembly("EShoppingZone.Product.Infrastructure");
         }
     );
     options.EnableSensitiveDataLogging(builder.Environment.IsDevelopment());

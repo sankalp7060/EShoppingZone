@@ -26,6 +26,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
             npgsqlOptions.EnableRetryOnFailure(3);
             npgsqlOptions.CommandTimeout(30);
             npgsqlOptions.MigrationsHistoryTable("__OrderHistory_v2");
+            npgsqlOptions.MigrationsAssembly("EShoppingZone.Order.Infrastructure");
         }
     );
 });

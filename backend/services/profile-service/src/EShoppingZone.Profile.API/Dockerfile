@@ -8,19 +8,12 @@ ENV ASPNETCORE_URLS=http://+:8080
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy all projects for this service
-COPY ["shared/EShoppingZone.Common/EShoppingZone.Common.csproj", "shared/EShoppingZone.Common/"]
-COPY ["services/profile-service/src/EShoppingZone.Profile.API/EShoppingZone.Profile.API.csproj", "services/profile-service/src/EShoppingZone.Profile.API/"]
-COPY ["services/profile-service/src/EShoppingZone.Profile.Application/EShoppingZone.Profile.Application.csproj", "services/profile-service/src/EShoppingZone.Profile.Application/"]
-COPY ["services/profile-service/src/EShoppingZone.Profile.Domain/EShoppingZone.Profile.Domain.csproj", "services/profile-service/src/EShoppingZone.Profile.Domain/"]
-COPY ["services/profile-service/src/EShoppingZone.Profile.Infrastructure/EShoppingZone.Profile.Infrastructure.csproj", "services/profile-service/src/EShoppingZone.Profile.Infrastructure/"]
-
-# Restore
-RUN dotnet restore "services/profile-service/src/EShoppingZone.Profile.API/EShoppingZone.Profile.API.csproj"
-
-# Copy everything
+# Copy EVERYTHING to maintain relative paths like ../../../../shared
 COPY . .
-WORKDIR "/src/services/profile-service/src/EShoppingZone.Profile.API"
+
+# Restore and Build using the full repo path
+RUN dotnet restore "backend/services/profile-service/src/EShoppingZone.Profile.API/EShoppingZone.Profile.API.csproj"
+WORKDIR "/src/backend/services/profile-service/src/EShoppingZone.Profile.API"
 RUN dotnet build "EShoppingZone.Profile.API.csproj" -c Release -o /app/build
 
 FROM build AS publish

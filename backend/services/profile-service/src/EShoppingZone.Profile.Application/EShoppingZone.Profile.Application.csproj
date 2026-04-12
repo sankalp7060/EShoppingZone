@@ -17,6 +17,6 @@
   <ItemGroup>
     <ProjectReference Include="..\EShoppingZone.Profile.Domain\EShoppingZone.Profile.Domain.csproj" />
     <ProjectReference Include="..\EShoppingZone.Profile.Infrastructure\EShoppingZone.Profile.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\..\shared\EShoppingZone.Common\EShoppingZone.Common.csproj" />
+    <ProjectReference Include="..\..\..\..\shared\EShoppingZone.Common\EShoppingZone.Common.csproj" />
   </ItemGroup>
 </Project>
