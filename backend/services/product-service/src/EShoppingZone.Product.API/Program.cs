@@ -25,7 +25,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         {
             npgsqlOptions.EnableRetryOnFailure(3);
             npgsqlOptions.CommandTimeout(30);
-            npgsqlOptions.MigrationsHistoryTable("__ProductMigrationsHistory");
+            npgsqlOptions.MigrationsHistoryTable("__ProductHistory_v2");
         }
     );
     options.EnableSensitiveDataLogging(builder.Environment.IsDevelopment());

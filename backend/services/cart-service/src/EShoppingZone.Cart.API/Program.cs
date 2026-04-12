@@ -26,7 +26,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         {
             npgsqlOptions.EnableRetryOnFailure(3);
             npgsqlOptions.CommandTimeout(30);
-            npgsqlOptions.MigrationsHistoryTable("__CartMigrationsHistory");
+            npgsqlOptions.MigrationsHistoryTable("__CartHistory_v2");
         }
     );
 });
