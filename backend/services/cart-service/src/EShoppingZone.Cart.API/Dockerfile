@@ -9,6 +9,7 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy all projects for this service
+COPY ["shared/EShoppingZone.Common/EShoppingZone.Common.csproj", "shared/EShoppingZone.Common/"]
 COPY ["services/cart-service/src/EShoppingZone.Cart.API/EShoppingZone.Cart.API.csproj", "services/cart-service/src/EShoppingZone.Cart.API/"]
 COPY ["services/cart-service/src/EShoppingZone.Cart.Application/EShoppingZone.Cart.Application.csproj", "services/cart-service/src/EShoppingZone.Cart.Application/"]
 COPY ["services/cart-service/src/EShoppingZone.Cart.Domain/EShoppingZone.Cart.Domain.csproj", "services/cart-service/src/EShoppingZone.Cart.Domain/"]

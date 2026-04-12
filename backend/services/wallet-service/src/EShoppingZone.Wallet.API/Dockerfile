@@ -9,6 +9,7 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy all projects for this service
+COPY ["shared/EShoppingZone.Common/EShoppingZone.Common.csproj", "shared/EShoppingZone.Common/"]
 COPY ["services/wallet-service/src/EShoppingZone.Wallet.API/EShoppingZone.Wallet.API.csproj", "services/wallet-service/src/EShoppingZone.Wallet.API/"]
 COPY ["services/wallet-service/src/EShoppingZone.Wallet.Application/EShoppingZone.Wallet.Application.csproj", "services/wallet-service/src/EShoppingZone.Wallet.Application/"]
 COPY ["services/wallet-service/src/EShoppingZone.Wallet.Domain/EShoppingZone.Wallet.Domain.csproj", "services/wallet-service/src/EShoppingZone.Wallet.Domain/"]

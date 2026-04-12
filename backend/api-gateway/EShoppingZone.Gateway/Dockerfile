@@ -9,6 +9,7 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy all projects first to cache restore
+COPY ["shared/EShoppingZone.Common/EShoppingZone.Common.csproj", "shared/EShoppingZone.Common/"]
 COPY ["api-gateway/EShoppingZone.Gateway/EShoppingZone.Gateway.csproj", "api-gateway/EShoppingZone.Gateway/"]
 
 # Restore dependencies

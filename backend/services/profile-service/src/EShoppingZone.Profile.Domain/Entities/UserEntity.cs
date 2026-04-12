@@ -6,7 +6,7 @@ namespace EShoppingZone.Profile.Domain.Entities
     {
         public string FullName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
-        public string? PasswordHash { get; set; } 
+        public string? PasswordHash { get; set; }
         public string? ProfileImage { get; set; }
         public long MobileNumber { get; set; }
         public string? About { get; set; }
@@ -14,8 +14,8 @@ namespace EShoppingZone.Profile.Domain.Entities
         public string Gender { get; set; } = string.Empty;
         public UserRole Role { get; set; } = UserRole.Customer;
         public bool IsEmailVerified { get; set; } = false;
-        public string? OAuthProvider { get; set; } 
-        public string? OAuthId { get; set; } 
+        public string? OAuthProvider { get; set; }
+        public string? OAuthId { get; set; }
         public DateTime? LastLoginAt { get; set; }
 
         // Navigation property

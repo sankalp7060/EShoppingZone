@@ -9,6 +9,7 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy all projects for this service
+COPY ["shared/EShoppingZone.Common/EShoppingZone.Common.csproj", "shared/EShoppingZone.Common/"]
 COPY ["services/order-service/src/EShoppingZone.Order.API/EShoppingZone.Order.API.csproj", "services/order-service/src/EShoppingZone.Order.API/"]
 COPY ["services/order-service/src/EShoppingZone.Order.Application/EShoppingZone.Order.Application.csproj", "services/order-service/src/EShoppingZone.Order.Application/"]
 COPY ["services/order-service/src/EShoppingZone.Order.Domain/EShoppingZone.Order.Domain.csproj", "services/order-service/src/EShoppingZone.Order.Domain/"]
