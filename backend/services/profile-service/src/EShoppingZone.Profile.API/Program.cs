@@ -109,19 +109,48 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 
-// Apply migrations safely
+// Apply migrations safely with deep diagnostics
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     try
     {
-        Console.WriteLine("Applying Profile database migrations...");
-        await dbContext.Database.MigrateAsync();
-        Console.WriteLine("Profile migration successful!");
+        var migrations = dbContext.Database.GetMigrations().ToList();
+        var pending = (await dbContext.Database.GetPendingMigrationsAsync()).ToList();
+        var applied = (await dbContext.Database.GetAppliedMigrationsAsync()).ToList();
+
+        Console.WriteLine($"[DB INFO] Profile - Total Migrations in Assembly: {migrations.Count}");
+        Console.WriteLine($"[DB INFO] Profile - Pending Migrations: {pending.Count}");
+        Console.WriteLine($"[DB INFO] Profile - Already Applied: {applied.Count}");
+
+        foreach (var m in pending)
+            Console.WriteLine($"[DB INFO] Will apply: {m}");
+
+        if (pending.Any())
+        {
+            Console.WriteLine("Applying Profile database migrations...");
+            await dbContext.Database.MigrateAsync();
+            Console.WriteLine("Profile migration successful!");
+        }
+        else
+        {
+            Console.WriteLine("Profile migration check finished: No pending migrations found.");
+
+            // Check if tables actually exist if 0 migrations were found
+            var tableNames = dbContext
+                .Model.GetEntityTypes()
+                .Select(t => t.GetTableName())
+                .ToList();
+            Console.WriteLine(
+                $"[DB INFO] Profile context expects tables: {string.Join(", ", tableNames)}"
+            );
+        }
     }
     catch (Exception ex)
     {
         Console.WriteLine($"MIGRATION FAILED for Profile: {ex.Message}");
+        if (ex.InnerException != null)
+            Console.WriteLine($"Inner Error: {ex.InnerException.Message}");
     }
 }
 
