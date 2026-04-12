@@ -40,11 +40,7 @@ builder.Services.AddCors(options =>
         "AllowFrontend",
         policy =>
         {
-            policy
-                .WithOrigins("http://localhost:3000", "http://localhost:5173")
-                .AllowAnyMethod()
-                .AllowAnyHeader()
-                .AllowCredentials();
+            policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
         }
     );
 });
@@ -93,13 +89,33 @@ app.MapHealthChecks(
         ResponseWriter = async (context, report) =>
         {
             context.Response.ContentType = "application/json";
-            
+
             // Get addresses from configuration to avoid hardcoded localhost in production
-            var profileUrl = builder.Configuration["ReverseProxy:Clusters:profile-cluster:Destinations:destination1:Address"] ?? "http://localhost:5001/";
-            var productUrl = builder.Configuration["ReverseProxy:Clusters:product-cluster:Destinations:destination1:Address"] ?? "http://localhost:5002/";
-            var cartUrl = builder.Configuration["ReverseProxy:Clusters:cart-cluster:Destinations:destination1:Address"] ?? "http://localhost:5003/";
-            var orderUrl = builder.Configuration["ReverseProxy:Clusters:order-cluster:Destinations:destination1:Address"] ?? "http://localhost:5004/";
-            var walletUrl = builder.Configuration["ReverseProxy:Clusters:wallet-cluster:Destinations:destination1:Address"] ?? "http://localhost:5005/";
+            var profileUrl =
+                builder.Configuration[
+                    "ReverseProxy:Clusters:profile-cluster:Destinations:destination1:Address"
+                ]
+                ?? "http://localhost:5001/";
+            var productUrl =
+                builder.Configuration[
+                    "ReverseProxy:Clusters:product-cluster:Destinations:destination1:Address"
+                ]
+                ?? "http://localhost:5002/";
+            var cartUrl =
+                builder.Configuration[
+                    "ReverseProxy:Clusters:cart-cluster:Destinations:destination1:Address"
+                ]
+                ?? "http://localhost:5003/";
+            var orderUrl =
+                builder.Configuration[
+                    "ReverseProxy:Clusters:order-cluster:Destinations:destination1:Address"
+                ]
+                ?? "http://localhost:5004/";
+            var walletUrl =
+                builder.Configuration[
+                    "ReverseProxy:Clusters:wallet-cluster:Destinations:destination1:Address"
+                ]
+                ?? "http://localhost:5005/";
 
             var result = System.Text.Json.JsonSerializer.Serialize(
                 new

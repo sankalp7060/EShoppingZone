@@ -261,7 +261,7 @@ namespace EShoppingZone.Product.Application.Services
                 "name_desc" => query.OrderByDescending(p => p.ProductName),
                 "newest" => query.OrderByDescending(p => p.CreatedAt),
                 "rating" => query.OrderByDescending(p =>
-                    p.Ratings == null || !p.Ratings.Any() ? 0 : p.Ratings.Values.Average()
+                    p.Ratings == null || !p.Ratings.Values.Any() ? 0 : p.Ratings.Values.Average()
                 ),
                 _ => query.OrderByDescending(p => p.CreatedAt),
             };
@@ -381,9 +381,14 @@ namespace EShoppingZone.Product.Application.Services
             // In production, you'd call Profile Service API
             var merchantName = $"Merchant_{product.MerchantId}";
 
-            var averageRating = product.Ratings.Values.Any()
-                ? Math.Round(product.Ratings.Values.Average(), 1)
-                : 0;
+            var averageRating =
+                (product.Ratings != null && product.Ratings.Values.Any())
+                    ? Math.Round(product.Ratings.Values.Average(), 1)
+                    : 0;
+
+            var images = product.Images ?? new List<string>();
+            var specifications = product.Specifications ?? new Dictionary<string, string>();
+            var ratings = product.Ratings ?? new Dictionary<int, double>();
 
             return new ProductResponse
             {
@@ -396,11 +401,11 @@ namespace EShoppingZone.Product.Application.Services
                 StockQuantity = product.StockQuantity,
                 MerchantId = product.MerchantId,
                 MerchantName = merchantName,
-                Ratings = product.Ratings,
-                Images = product.Images,
-                Specifications = product.Specifications,
+                Ratings = ratings,
+                Images = images,
+                Specifications = specifications,
                 AverageRating = averageRating,
-                TotalReviews = product.Ratings.Count,
+                TotalReviews = ratings.Count,
                 CreatedAt = product.CreatedAt,
                 UpdatedAt = product.UpdatedAt,
             };
@@ -408,8 +413,16 @@ namespace EShoppingZone.Product.Application.Services
 
         public async Task<List<string>> GetAllCategoriesAsync()
         {
-            var baseCategories = new List<string> { "Electronics", "Fashion", "Home Appliances", "Beauty & Health", "Sports & Fitness", "Books & Stationery" };
-            
+            var baseCategories = new List<string>
+            {
+                "Electronics",
+                "Fashion",
+                "Home Appliances",
+                "Beauty & Health",
+                "Sports & Fitness",
+                "Books & Stationery",
+            };
+
             var dbCategories = await _productRepository
                 .GetQueryable()
                 .Where(p => p.IsActive)
@@ -422,7 +435,17 @@ namespace EShoppingZone.Product.Application.Services
 
         public async Task<List<string>> GetAllProductTypesAsync()
         {
-            var baseTypes = new List<string> { "Smartphone", "Laptop", "Audio/Headphones", "Smartwatch", "Camera", "Television", "Gaming Console", "Hardware" };
+            var baseTypes = new List<string>
+            {
+                "Smartphone",
+                "Laptop",
+                "Audio/Headphones",
+                "Smartwatch",
+                "Camera",
+                "Television",
+                "Gaming Console",
+                "Hardware",
+            };
 
             var dbTypes = await _productRepository
                 .GetQueryable()
@@ -454,9 +477,14 @@ namespace EShoppingZone.Product.Application.Services
             product.UpdatedAt = DateTime.UtcNow;
 
             await _productRepository.UpdateAsync(product);
-            
-            _logger.LogInformation("Product {ProductId} rated {Rating} by User {UserId}", productId, rating, userId);
-            
+
+            _logger.LogInformation(
+                "Product {ProductId} rated {Rating} by User {UserId}",
+                productId,
+                rating,
+                userId
+            );
+
             return await MapToProductResponse(product);
         }
 
@@ -473,9 +501,13 @@ namespace EShoppingZone.Product.Application.Services
             product.UpdatedAt = DateTime.UtcNow;
 
             await _productRepository.UpdateAsync(product);
-            
-            _logger.LogInformation("Product {ProductId} stock decreased by {Quantity}", productId, quantity);
-            
+
+            _logger.LogInformation(
+                "Product {ProductId} stock decreased by {Quantity}",
+                productId,
+                quantity
+            );
+
             return await MapToProductResponse(product);
         }
     }
