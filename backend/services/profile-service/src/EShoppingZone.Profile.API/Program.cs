@@ -105,48 +105,50 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 
-// Apply migrations safely with deep diagnostics
+// Apply migrations safely
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     try
     {
+        // Force-load the Infrastructure assembly so EF can find migrations
+        var infraAssembly =
+            typeof(EShoppingZone.Profile.Infrastructure.Data.ApplicationDbContext).Assembly;
+        Console.WriteLine($"[DB INFO] Loaded assembly: {infraAssembly.GetName().Name}");
+
         var migrations = dbContext.Database.GetMigrations().ToList();
-        var pending = (await dbContext.Database.GetPendingMigrationsAsync()).ToList();
-        var applied = (await dbContext.Database.GetAppliedMigrationsAsync()).ToList();
+        Console.WriteLine($"[DB INFO] Total Migrations in Assembly: {migrations.Count}");
 
-        Console.WriteLine($"[DB INFO] Profile - Total Migrations in Assembly: {migrations.Count}");
-        Console.WriteLine($"[DB INFO] Profile - Pending Migrations: {pending.Count}");
-        Console.WriteLine($"[DB INFO] Profile - Already Applied: {applied.Count}");
-
-        foreach (var m in pending)
-            Console.WriteLine($"[DB INFO] Will apply: {m}");
-
-        if (pending.Any())
+        if (migrations.Count == 0)
         {
-            Console.WriteLine("Applying Profile database migrations...");
-            await dbContext.Database.MigrateAsync();
-            Console.WriteLine("Profile migration successful!");
+            // Fallback: create all tables directly from the EF model
+            Console.WriteLine(
+                "[DB INFO] No migrations found - using EnsureCreated() to create schema..."
+            );
+            await dbContext.Database.EnsureCreatedAsync();
+            Console.WriteLine("[DB INFO] EnsureCreated() completed - all tables created.");
         }
         else
         {
-            Console.WriteLine("Profile migration check finished: No pending migrations found.");
-
-            // Check if tables actually exist if 0 migrations were found
-            var tableNames = dbContext
-                .Model.GetEntityTypes()
-                .Select(t => t.GetTableName())
-                .ToList();
-            Console.WriteLine(
-                $"[DB INFO] Profile context expects tables: {string.Join(", ", tableNames)}"
-            );
+            var pending = (await dbContext.Database.GetPendingMigrationsAsync()).ToList();
+            Console.WriteLine($"[DB INFO] Pending Migrations: {pending.Count}");
+            if (pending.Any())
+            {
+                Console.WriteLine("Applying migrations...");
+                await dbContext.Database.MigrateAsync();
+                Console.WriteLine("Migration successful!");
+            }
+            else
+            {
+                Console.WriteLine("No pending migrations.");
+            }
         }
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"MIGRATION FAILED for Profile: {ex.Message}");
+        Console.WriteLine($"DB SETUP FAILED: {ex.Message}");
         if (ex.InnerException != null)
-            Console.WriteLine($"Inner Error: {ex.InnerException.Message}");
+            Console.WriteLine($"Inner: {ex.InnerException.Message}");
     }
 }
 
