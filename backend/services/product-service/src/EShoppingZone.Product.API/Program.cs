@@ -14,22 +14,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Configure PostgreSQL - Single Database
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-Console.WriteLine($"Using Connection String: {connectionString}");
-
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-{
-    options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        npgsqlOptions =>
-        {
-            npgsqlOptions.EnableRetryOnFailure(3);
-            npgsqlOptions.CommandTimeout(30);
-            npgsqlOptions.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.GetName().Name);
-        }
-    );
-    options.EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
-});
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+);
 
 // Register repositories
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
@@ -100,14 +87,44 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     try
     {
-        Console.WriteLine("Applying Product database migrations...");
-        await dbContext.Database.MigrateAsync();
-        Console.WriteLine("Product migration successful!");
+        // Force-load the Infrastructure assembly so EF can find migrations
+        var infraAssembly =
+            typeof(EShoppingZone.Product.Infrastructure.Data.ApplicationDbContext).Assembly;
+        Console.WriteLine($"[DB INFO] Loaded assembly: {infraAssembly.GetName().Name}");
+
+        var migrations = dbContext.Database.GetMigrations().ToList();
+        Console.WriteLine($"[DB INFO] Total Migrations in Assembly: {migrations.Count}");
+
+        if (migrations.Count == 0)
+        {
+            // Fallback: create all tables directly from the EF model
+            Console.WriteLine(
+                "[DB INFO] No migrations found - using EnsureCreated() to create schema..."
+            );
+            await dbContext.Database.EnsureCreatedAsync();
+            Console.WriteLine("[DB INFO] EnsureCreated() completed - all tables created.");
+        }
+        else
+        {
+            var pending = (await dbContext.Database.GetPendingMigrationsAsync()).ToList();
+            Console.WriteLine($"[DB INFO] Pending Migrations: {pending.Count}");
+            if (pending.Any())
+            {
+                Console.WriteLine("Applying migrations...");
+                await dbContext.Database.MigrateAsync();
+                Console.WriteLine("Migration successful!");
+            }
+            else
+            {
+                Console.WriteLine("No pending migrations.");
+            }
+        }
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"MIGRATION FAILED for Product: {ex.Message}");
+        Console.WriteLine($"DB SETUP FAILED: {ex.Message}");
+        if (ex.InnerException != null)
+            Console.WriteLine($"Inner: {ex.InnerException.Message}");
     }
 }
-
 app.Run();
