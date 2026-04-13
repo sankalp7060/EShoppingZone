@@ -29,7 +29,7 @@ namespace EShoppingZone.Order.Application.Services
 
                 var request = new { quantityChange };
                 var response = await _httpClient.PatchAsJsonAsync(
-                    $"http://localhost:5002/api/products/{productId}/stock",
+                    $"/api/products/{productId}/stock",
                     request
                 );
 
@@ -49,11 +49,13 @@ namespace EShoppingZone.Order.Application.Services
                 _httpClient.DefaultRequestHeaders.Authorization =
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-                var response = await _httpClient.GetAsync($"http://localhost:5002/api/products/{productId}");
+                var response = await _httpClient.GetAsync($"/api/products/{productId}");
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var result = await response.Content.ReadFromJsonAsync<ProductApiResponse<ProductResponseDto>>();
+                    var result = await response.Content.ReadFromJsonAsync<
+                        ProductApiResponse<ProductResponseDto>
+                    >();
                     return result?.Data;
                 }
 
@@ -62,7 +64,11 @@ namespace EShoppingZone.Order.Application.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error calling product service for product {ProductId}", productId);
+                _logger.LogError(
+                    ex,
+                    "Error calling product service for product {ProductId}",
+                    productId
+                );
                 return null;
             }
         }

@@ -52,12 +52,6 @@ builder.Services.AddHttpClient<IWalletServiceClient, WalletServiceClient>(client
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 
-// Register HTTP clients for inter-service communication
-builder.Services.AddHttpClient<IProfileServiceClient, ProfileServiceClient>();
-builder.Services.AddHttpClient<ICartServiceClient, CartServiceClient>();
-builder.Services.AddHttpClient<IProductServiceClient, ProductServiceClient>();
-builder.Services.AddHttpClient<IWalletServiceClient, WalletServiceClient>();
-
 // Register repositories
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 

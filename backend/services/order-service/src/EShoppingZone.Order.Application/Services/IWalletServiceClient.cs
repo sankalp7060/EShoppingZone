@@ -13,8 +13,18 @@ namespace EShoppingZone.Order.Application.Services
             string token
         );
         Task<WalletBalanceResponse> GetWalletBalanceAsync(int userId, string token);
-        Task<WalletPaymentResult> RefundWalletPaymentAsync(int userId, int orderId, decimal amount, string token);
-        Task<WalletPaymentResult> CreditMerchantAsync(int merchantId, int orderId, decimal amount, string token);
+        Task<WalletPaymentResult> RefundWalletPaymentAsync(
+            int userId,
+            int orderId,
+            decimal amount,
+            string token
+        );
+        Task<WalletPaymentResult> CreditMerchantAsync(
+            int merchantId,
+            int orderId,
+            decimal amount,
+            string token
+        );
     }
 
     public class WalletPaymentResult
@@ -61,10 +71,7 @@ namespace EShoppingZone.Order.Application.Services
                     remarks = $"Payment for order #{orderId}",
                 };
 
-                var response = await _httpClient.PostAsJsonAsync(
-                    $"http://localhost:5005/api/wallet/pay",
-                    request
-                );
+                var response = await _httpClient.PostAsJsonAsync($"/api/wallet/pay", request);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -101,9 +108,7 @@ namespace EShoppingZone.Order.Application.Services
                 _httpClient.DefaultRequestHeaders.Authorization =
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-                var response = await _httpClient.GetAsync(
-                    $"http://localhost:5005/api/wallet/balance"
-                );
+                var response = await _httpClient.GetAsync($"/api/wallet/balance");
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -122,6 +127,7 @@ namespace EShoppingZone.Order.Application.Services
                 return new WalletBalanceResponse { CurrentBalance = 0, UserId = userId };
             }
         }
+
         public async Task<WalletPaymentResult> RefundWalletPaymentAsync(
             int userId,
             int orderId,
@@ -141,10 +147,7 @@ namespace EShoppingZone.Order.Application.Services
                     remarks = $"Refund for cancelled order #{orderId}",
                 };
 
-                var response = await _httpClient.PostAsJsonAsync(
-                    $"http://localhost:5005/api/wallet/refund",
-                    request
-                );
+                var response = await _httpClient.PostAsJsonAsync($"/api/wallet/refund", request);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -162,7 +165,11 @@ namespace EShoppingZone.Order.Application.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error calling wallet service for refund");
-                return new WalletPaymentResult { Success = false, Message = "Refund service unavailable" };
+                return new WalletPaymentResult
+                {
+                    Success = false,
+                    Message = "Refund service unavailable",
+                };
             }
         }
 
@@ -186,7 +193,7 @@ namespace EShoppingZone.Order.Application.Services
                 };
 
                 var response = await _httpClient.PostAsJsonAsync(
-                    $"http://localhost:5005/api/wallet/credit/{merchantId}",
+                    $"/api/wallet/credit/{merchantId}",
                     request
                 );
 
@@ -200,7 +207,11 @@ namespace EShoppingZone.Order.Application.Services
                 }
 
                 var error = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning("Wallet credit failed for merchant {MerchantId}: {Error}", merchantId, error);
+                _logger.LogWarning(
+                    "Wallet credit failed for merchant {MerchantId}: {Error}",
+                    merchantId,
+                    error
+                );
                 return new WalletPaymentResult { Success = false, Message = "Credit failed" };
             }
             catch (Exception ex)

@@ -28,7 +28,7 @@ namespace EShoppingZone.Order.Application.Services
                 _httpClient.DefaultRequestHeaders.Authorization =
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-                var response = await _httpClient.GetAsync($"http://localhost:5003/api/cart");
+                var response = await _httpClient.GetAsync($"/api/cart");
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -55,9 +55,7 @@ namespace EShoppingZone.Order.Application.Services
                 _httpClient.DefaultRequestHeaders.Authorization =
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-                var response = await _httpClient.DeleteAsync(
-                    $"http://localhost:5003/api/cart/clear"
-                );
+                var response = await _httpClient.DeleteAsync($"/api/cart/clear");
 
                 return response.IsSuccessStatusCode;
             }
