@@ -61,10 +61,13 @@ namespace EShoppingZone.Profile.API.Controllers
 
                 // Configure MailKit SMTP client
                 using var client = new SmtpClient();
-                client.Timeout = 30000; // 30 seconds timeout
+                client.Timeout = 10000; // 10 seconds timeout (fail faster if port is blocked)
 
-                // Connecting using StartTls which is standard for port 587 (like AWS SES and Gmail)
-                await client.ConnectAsync(smtpServer, port, SecureSocketOptions.StartTls);
+                // If using port 465, use SslOnConnect (Implicit SSL). If 587, use StartTls.
+                var secureOption =
+                    port == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls;
+
+                await client.ConnectAsync(smtpServer, port, secureOption);
 
                 // Note: remove the XOAUTH2 authentication mechanism since we are using an app password or IAM keys.
                 client.AuthenticationMechanisms.Remove("XOAUTH2");
