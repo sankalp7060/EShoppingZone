@@ -1,7 +1,8 @@
-using System.Net;
-using System.Net.Mail;
 using System.Text;
+using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.AspNetCore.Mvc;
+using MimeKit;
 
 namespace EShoppingZone.Profile.API.Controllers
 {
@@ -33,7 +34,11 @@ namespace EShoppingZone.Profile.API.Controllers
                     ?.Trim('"')
                     .Replace(" ", "");
 
-                if (string.IsNullOrEmpty(senderEmail) || string.IsNullOrEmpty(appPassword))
+                if (
+                    string.IsNullOrEmpty(senderEmail)
+                    || string.IsNullOrEmpty(appPassword)
+                    || string.IsNullOrEmpty(smtpServer)
+                )
                 {
                     _logger.LogError("Email settings are not properly configured");
                     return StatusCode(
@@ -42,51 +47,62 @@ namespace EShoppingZone.Profile.API.Controllers
                     );
                 }
 
-                // Create email message
-                var mailMessage = new MailMessage
-                {
-                    From = new MailAddress(senderEmail, senderName),
-                    Subject = "Password Reset OTP - EShoppingZone",
-                    Body = GenerateOTPEmailTemplate(request.Otp),
-                    IsBodyHtml = true,
-                };
-                mailMessage.To.Add(request.Email);
+                // Create email message using MimeKit
+                var message = new MimeMessage();
+                message.From.Add(new MailboxAddress(senderName ?? "EShoppingZone", senderEmail));
+                message.To.Add(new MailboxAddress("", request.Email));
+                message.Subject = "Password Reset OTP - EShoppingZone";
 
-                // Configure SMTP client
-                using var smtpClient = new SmtpClient(smtpServer, port)
+                var bodyBuilder = new BodyBuilder
                 {
-                    EnableSsl = true,
-                    UseDefaultCredentials = false,
-                    Credentials = new NetworkCredential(senderEmail, appPassword),
-                    DeliveryMethod = SmtpDeliveryMethod.Network,
-                    Timeout = 30000, // 30 seconds timeout
+                    HtmlBody = GenerateOTPEmailTemplate(request.Otp),
                 };
+                message.Body = bodyBuilder.ToMessageBody();
 
-                // Send email
-                await smtpClient.SendMailAsync(mailMessage);
+                // Configure MailKit SMTP client
+                using var client = new SmtpClient();
+                client.Timeout = 30000; // 30 seconds timeout
+
+                // Connecting using StartTls which is standard for port 587 (like AWS SES and Gmail)
+                await client.ConnectAsync(smtpServer, port, SecureSocketOptions.StartTls);
+
+                // Note: remove the XOAUTH2 authentication mechanism since we are using an app password or IAM keys.
+                client.AuthenticationMechanisms.Remove("XOAUTH2");
+
+                await client.AuthenticateAsync(senderEmail, appPassword);
+                await client.SendAsync(message);
+                await client.DisconnectAsync(true);
 
                 _logger.LogInformation("OTP sent successfully to {Email}", request.Email);
                 return Ok(new { success = true, message = "OTP sent successfully" });
             }
-            catch (SmtpException smtpEx)
+            catch (SmtpCommandException ex)
             {
                 _logger.LogError(
-                    smtpEx,
+                    ex,
                     "SMTP error sending OTP to {Email}: {StatusCode}",
                     request.Email,
-                    smtpEx.StatusCode
+                    ex.StatusCode
                 );
 
-                // Provide more specific error messages
-                string errorMessage = smtpEx.StatusCode switch
+                string errorMessage = ex.StatusCode switch
                 {
-                    SmtpStatusCode.MailboxBusy => "Mailbox is busy, please try again",
-                    SmtpStatusCode.MailboxUnavailable => "Mailbox unavailable",
-                    SmtpStatusCode.ExceededStorageAllocation => "Mailbox full",
+                    MailKit.Net.Smtp.SmtpStatusCode.MailboxBusy =>
+                        "Mailbox is busy, please try again",
+                    MailKit.Net.Smtp.SmtpStatusCode.MailboxUnavailable => "Mailbox unavailable",
+                    MailKit.Net.Smtp.SmtpStatusCode.ExceededStorageAllocation => "Mailbox full",
                     _ => "Failed to send email. Please check SMTP configuration",
                 };
 
                 return StatusCode(500, new { success = false, message = errorMessage });
+            }
+            catch (SmtpProtocolException ex)
+            {
+                _logger.LogError(ex, "SMTP protocol error sending OTP to {Email}", request.Email);
+                return StatusCode(
+                    500,
+                    new { success = false, message = "Protocol error while sending email." }
+                );
             }
             catch (Exception ex)
             {
