@@ -1,7 +1,7 @@
-using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using System.Net.Mail;
 using System.Text;
+using Microsoft.AspNetCore.Mvc;
 
 namespace EShoppingZone.Profile.API.Controllers
 {
@@ -12,9 +12,7 @@ namespace EShoppingZone.Profile.API.Controllers
         private readonly ILogger<EmailController> _logger;
         private readonly IConfiguration _configuration;
 
-        public EmailController(
-            ILogger<EmailController> logger,
-            IConfiguration configuration)
+        public EmailController(ILogger<EmailController> logger, IConfiguration configuration)
         {
             _logger = logger;
             _configuration = configuration;
@@ -25,17 +23,23 @@ namespace EShoppingZone.Profile.API.Controllers
         {
             try
             {
-                // Get SMTP settings from configuration
-                var smtpServer = _configuration["EmailSettings:SmtpServer"];
-                var port = int.Parse(_configuration["EmailSettings:Port"] ?? "587");
-                var senderEmail = _configuration["EmailSettings:SenderEmail"];
-                var senderName = _configuration["EmailSettings:SenderName"];
-                var appPassword = _configuration["EmailSettings:AppPassword"];
+                // Get SMTP settings from configuration and defensively trim quotes (common issue in Render env vars)
+                var smtpServer = _configuration["EmailSettings:SmtpServer"]?.Trim('"');
+                var portStr = _configuration["EmailSettings:Port"]?.Trim('"') ?? "587";
+                var port = int.Parse(portStr);
+                var senderEmail = _configuration["EmailSettings:SenderEmail"]?.Trim('"');
+                var senderName = _configuration["EmailSettings:SenderName"]?.Trim('"');
+                var appPassword = _configuration["EmailSettings:AppPassword"]
+                    ?.Trim('"')
+                    .Replace(" ", "");
 
                 if (string.IsNullOrEmpty(senderEmail) || string.IsNullOrEmpty(appPassword))
                 {
                     _logger.LogError("Email settings are not properly configured");
-                    return StatusCode(500, new { success = false, message = "Email service not configured" });
+                    return StatusCode(
+                        500,
+                        new { success = false, message = "Email service not configured" }
+                    );
                 }
 
                 // Create email message
@@ -44,7 +48,7 @@ namespace EShoppingZone.Profile.API.Controllers
                     From = new MailAddress(senderEmail, senderName),
                     Subject = "Password Reset OTP - EShoppingZone",
                     Body = GenerateOTPEmailTemplate(request.Otp),
-                    IsBodyHtml = true
+                    IsBodyHtml = true,
                 };
                 mailMessage.To.Add(request.Email);
 
@@ -55,7 +59,7 @@ namespace EShoppingZone.Profile.API.Controllers
                     UseDefaultCredentials = false,
                     Credentials = new NetworkCredential(senderEmail, appPassword),
                     DeliveryMethod = SmtpDeliveryMethod.Network,
-                    Timeout = 30000 // 30 seconds timeout
+                    Timeout = 30000, // 30 seconds timeout
                 };
 
                 // Send email
@@ -66,23 +70,31 @@ namespace EShoppingZone.Profile.API.Controllers
             }
             catch (SmtpException smtpEx)
             {
-                _logger.LogError(smtpEx, "SMTP error sending OTP to {Email}: {StatusCode}", request.Email, smtpEx.StatusCode);
-                
+                _logger.LogError(
+                    smtpEx,
+                    "SMTP error sending OTP to {Email}: {StatusCode}",
+                    request.Email,
+                    smtpEx.StatusCode
+                );
+
                 // Provide more specific error messages
                 string errorMessage = smtpEx.StatusCode switch
                 {
                     SmtpStatusCode.MailboxBusy => "Mailbox is busy, please try again",
                     SmtpStatusCode.MailboxUnavailable => "Mailbox unavailable",
                     SmtpStatusCode.ExceededStorageAllocation => "Mailbox full",
-                    _ => "Failed to send email. Please check SMTP configuration"
+                    _ => "Failed to send email. Please check SMTP configuration",
                 };
-                
+
                 return StatusCode(500, new { success = false, message = errorMessage });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error sending OTP email to {Email}", request.Email);
-                return StatusCode(500, new { success = false, message = $"Failed to send email: {ex.Message}" });
+                return StatusCode(
+                    500,
+                    new { success = false, message = $"Failed to send email: {ex.Message}" }
+                );
             }
         }
 
