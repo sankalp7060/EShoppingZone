@@ -1,9 +1,9 @@
 using System.Security.Claims;
+using EShoppingZone.Profile.Application.Common.Exceptions;
 using EShoppingZone.Profile.Application.DTOs;
 using EShoppingZone.Profile.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using EShoppingZone.Profile.Application.Common.Exceptions;
 
 namespace EShoppingZone.Profile.API.Controllers
 {
@@ -44,9 +44,6 @@ namespace EShoppingZone.Profile.API.Controllers
         {
             try
             {
-                var deviceInfo = Request.Headers["User-Agent"].ToString();
-                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-
                 // You'll need to modify AuthService.LoginAsync to accept deviceInfo and ipAddress
                 var response = await _authService.LoginAsync(request);
                 return Ok(new { success = true, data = response });
@@ -67,9 +64,6 @@ namespace EShoppingZone.Profile.API.Controllers
         {
             try
             {
-                var deviceInfo = Request.Headers["User-Agent"].ToString();
-                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-
                 var response = await _authService.GoogleLoginAsync(request);
                 return Ok(new { success = true, data = response });
             }
@@ -188,6 +182,7 @@ namespace EShoppingZone.Profile.API.Controllers
             var isValid = await _authService.ValidateTokenAsync(token);
             return Ok(new { success = true, isValid = isValid });
         }
+
         [HttpPost("check-email")]
         public async Task<IActionResult> CheckEmail([FromBody] CheckEmailRequest request)
         {
@@ -196,7 +191,7 @@ namespace EShoppingZone.Profile.API.Controllers
                 var user = await _authService.GetUserByEmailAsync(request.Email);
                 if (user == null)
                     return Ok(new { success = false, message = "Email not found" });
-                
+
                 return Ok(new { success = true, message = "Email exists" });
             }
             catch (Exception ex)
@@ -211,10 +206,13 @@ namespace EShoppingZone.Profile.API.Controllers
         {
             try
             {
-                var result = await _authService.ResetPasswordAsync(request.Email, request.NewPassword);
+                var result = await _authService.ResetPasswordAsync(
+                    request.Email,
+                    request.NewPassword
+                );
                 if (result)
                     return Ok(new { success = true, message = "Password reset successfully" });
-                
+
                 return BadRequest(new { success = false, message = "Failed to reset password" });
             }
             catch (NotFoundException ex)
@@ -228,6 +226,7 @@ namespace EShoppingZone.Profile.API.Controllers
             }
         }
     }
+
     public class CheckEmailRequest
     {
         public string Email { get; set; } = string.Empty;

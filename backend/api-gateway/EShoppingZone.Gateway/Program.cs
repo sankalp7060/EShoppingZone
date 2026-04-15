@@ -1,7 +1,7 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using Yarp.ReverseProxy.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -51,13 +51,10 @@ builder.Services.AddHealthChecks();
 // Add rate limiting
 builder.Services.AddRateLimiter(options =>
 {
-    options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<
-        HttpContext,
-        string
-    >(httpContext =>
-        System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.Request.Headers.Host.ToString(),
-            factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            factory: partition => new FixedWindowRateLimiterOptions
             {
                 AutoReplenishment = true,
                 PermitLimit = 100,

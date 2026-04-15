@@ -103,9 +103,15 @@ namespace EShoppingZone.Profile.Application.Services
             {
                 if (user.Role.ToString().ToLower() != request.Role.ToLower())
                 {
-                    _logger.LogWarning("Role mismatch login attempt for {Email}: Expected {Selected}, actual {Actual}", 
-                        user.Email, request.Role, user.Role);
-                    throw new UnauthorizedAccessException($"This account is registered as a {user.Role}. Please log in with the correct role.");
+                    _logger.LogWarning(
+                        "Role mismatch login attempt for {Email}: Expected {Selected}, actual {Actual}",
+                        user.Email,
+                        request.Role,
+                        user.Role
+                    );
+                    throw new UnauthorizedAccessException(
+                        $"This account is registered as a {user.Role}. Please log in with the correct role."
+                    );
                 }
             }
 
@@ -137,7 +143,7 @@ namespace EShoppingZone.Profile.Application.Services
                         "merchant" => UserRole.Merchant,
                         "deliveryagent" => UserRole.DeliveryAgent,
                         "customer" => UserRole.Customer,
-                        _ => UserRole.Customer
+                        _ => UserRole.Customer,
                     };
                 }
 
@@ -153,7 +159,10 @@ namespace EShoppingZone.Profile.Application.Services
                         Audience = new[] { _configuration["Google:ClientId"] },
                     };
 
-                    var payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, settings);
+                    var payload = await GoogleJsonWebSignature.ValidateAsync(
+                        request.IdToken,
+                        settings
+                    );
                     email = payload.Email;
                     name = payload.Name;
                     pictureUrl = payload.Picture;
@@ -175,7 +184,10 @@ namespace EShoppingZone.Profile.Application.Services
 
                     if (!response.IsSuccessStatusCode)
                     {
-                        _logger.LogWarning("Invalid Google Access Token: {Status}", response.StatusCode);
+                        _logger.LogWarning(
+                            "Invalid Google Access Token: {Status}",
+                            response.StatusCode
+                        );
                         throw new UnauthorizedAccessException("Invalid Google access token");
                     }
 
@@ -210,7 +222,9 @@ namespace EShoppingZone.Profile.Application.Services
                     if (string.IsNullOrEmpty(request.Role))
                     {
                         _logger.LogWarning("Login attempt for non-existent user: {Email}", email);
-                        throw new UnauthorizedAccessException("Account not found. Please register first.");
+                        throw new UnauthorizedAccessException(
+                            "Account not found. Please register first."
+                        );
                     }
 
                     // Create new user with selected role
@@ -232,7 +246,10 @@ namespace EShoppingZone.Profile.Application.Services
                     try
                     {
                         var createdUser = await _userRepository.CreateAsync(newUser);
-                        _logger.LogInformation("New Google user registered successfully: {UserId}", createdUser.Id);
+                        _logger.LogInformation(
+                            "New Google user registered successfully: {UserId}",
+                            createdUser.Id
+                        );
                         return await GenerateAuthResponse(createdUser);
                     }
                     catch (Exception ex)
@@ -244,15 +261,21 @@ namespace EShoppingZone.Profile.Application.Services
                 else
                 {
                     // LOGIN PATH (for existing users)
-                    
+
                     // If role was explicitly provided for an existing user, verify it
                     if (!string.IsNullOrEmpty(request.Role))
                     {
                         if (user.Role.ToString().ToLower() != request.Role.ToLower())
                         {
-                            _logger.LogWarning("Google Role mismatch for {Email}: Expected {Selected}, actual {Actual}", 
-                                user.Email, request.Role, user.Role);
-                            throw new UnauthorizedAccessException($"This account is already registered as a {user.Role}. Please select the correct role to log in.");
+                            _logger.LogWarning(
+                                "Google Role mismatch for {Email}: Expected {Selected}, actual {Actual}",
+                                user.Email,
+                                request.Role,
+                                user.Role
+                            );
+                            throw new UnauthorizedAccessException(
+                                $"This account is already registered as a {user.Role}. Please select the correct role to log in."
+                            );
                         }
                     }
 
@@ -264,7 +287,10 @@ namespace EShoppingZone.Profile.Application.Services
                         user.IsEmailVerified = emailVerified;
                         user.ProfileImage ??= pictureUrl;
                         await _userRepository.UpdateAsync(user);
-                        _logger.LogInformation("Google linked to existing email account: {Email}", user.Email);
+                        _logger.LogInformation(
+                            "Google linked to existing email account: {Email}",
+                            user.Email
+                        );
                     }
                     else
                     {
@@ -532,6 +558,7 @@ namespace EShoppingZone.Profile.Application.Services
                 IsEmailVerified = user.IsEmailVerified,
             };
         }
+
         public async Task<UserDto?> GetUserByEmailAsync(string email)
         {
             var user = await _userRepository.GetByEmailAsync(email);
